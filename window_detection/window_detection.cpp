@@ -11,8 +11,10 @@ Mat draw_square(vector<vector<Point> > squares, Mat image)
         drawContours(image, squares, i, Scalar(255,0,0), 1, 8, vector<Vec4i>(), 0, Point());
 
         // draw bounding rect
+        /*
         Rect rect = boundingRect(Mat(squares[i]));
         rectangle(image, rect.tl(), rect.br(), Scalar(0,255,0), 2, 8, 0);
+        */
 
         // draw rotated rect
         RotatedRect minRect = minAreaRect(Mat(squares[i]));
@@ -20,7 +22,8 @@ Mat draw_square(vector<vector<Point> > squares, Mat image)
         minRect.points( rect_points );
         for ( int j = 0; j < 4; j++ ) 
         {
-            line( image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255), 1, 8); // blue
+            // line( image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255), 1, 8); // blue 
+            line( image, rect_points[j], rect_points[(j+1)%4], Scalar(0,255,0), 1, 8); // green  
         }
     }
     return image;
@@ -140,58 +143,83 @@ void find_largest_square(const vector<vector<Point> >& squares, vector<Point>& b
     biggest_square = squares[max_square_idx];
 }
 
-int main(int, char**)
+VideoCapture initialize_window_detection()
 {
     VideoCapture cap(0); // open the default camera
     if(!cap.isOpened())  // check if we succeeded
     {
         cout << "Failed to open camera, exiting\n";
-        return -1;
+        return cap;
     }
-    Mat frame, edges;
+}
+
+int detect_window(VideoCapture cap, int frame_size)
+{
+    Mat frame, edges, quarter_frame;
     //namedWindow("edges",1);
-    namedWindow("frame",1);
+    namedWindow("frame", 1);
+
+    //cout << "entered while loop\n";
+    cap >> frame; // get a new frame from camera
+    
+    /* Gaussian Blur with Canny Edge Detector */
+    /*
+    cvtColor(frame, edges, CV_BGR2GRAY);
+    GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
+    Canny(edges, edges, 0, 30, 3);
+    */
+    //imshow("edges", edges);
+
+    // Detect all regions in the image that are similar to a rectangle
+    vector<vector<Point> > squares;
+
+    // Downsample the image to speed up computation
+    pyrDown(frame, quarter_frame, Size(frame.cols/2, frame.rows/2));
+    if (frame_size == 1) frame = quarter_frame; // change here 
+
+    find_squares(frame, squares);
+
+    cout << "squares.size() = " << squares.size() << "\n";
+    if (squares.size() == 0)
+    {
+        cout << "No squares found.\n";
+        //return -1;
+    }
+
+    else
+    {
+        // The largest of them probably represents the window
+        vector<Point> largest_square;
+        find_largest_square(squares, largest_square);
+
+        // Print the x,y coordinates of the square
+        cout << "Point 1: " << largest_square[0] << endl;
+        cout << "Point 2: " << largest_square[1] << endl;
+        cout << "Point 3: " << largest_square[2] << endl;
+        cout << "Point 4: " << largest_square[3] << endl;
+        cout << "\n";
+        draw_square(squares, frame);
+    }
+    imshow("frame", frame);
+
+    //if(waitKey(30) >= 0) break;
+
+    return 0;
+}
+
+int main(int, char**)
+{
+    VideoCapture cap = initialize_window_detection();
+    int distance;
+    int frame_size = 1;
     while(true)
     {
-        //cout << "entered while loop\n";
-        cap >> frame; // get a new frame from camera
-        cvtColor(frame, edges, CV_BGR2GRAY);
-        GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
-        Canny(edges, edges, 0, 30, 3);
-        //imshow("edges", edges);
-
-        // Detect all regions in the image that are similar to a rectangle
-        vector<vector<Point> > squares;
-        //find_squares(edges, squares);
-        find_squares(frame, squares);
-
-        cout << "squares.size() = " << squares.size() << "\n";
-        if (squares.size() == 0)
-        {
-            cout << "No squares found.\n";
-            //return -1;
-        }
-        else
-        {
-            // The largest of them probably represents the window
-            vector<Point> largest_square;
-            find_largest_square(squares, largest_square);
-
-            // Print the x,y coordinates of the square
-            cout << "Point 1: " << largest_square[0] << endl;
-            cout << "Point 2: " << largest_square[1] << endl;
-            cout << "Point 3: " << largest_square[2] << endl;
-            cout << "Point 4: " << largest_square[3] << endl;
-            cout << "\n";
-            draw_square(squares, frame);
-        }
-        imshow("frame", frame);
-        if(waitKey(30) >= 0) break;
+        distance = detect_window(cap, frame_size);
+        if(waitKey(30) >= 0) 
+            break;
     }
     // camera deinitialized automatically in VideoCapture destructor
     return 0;
 }
-
-
 
 
