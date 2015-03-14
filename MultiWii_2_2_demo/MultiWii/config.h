@@ -55,7 +55,7 @@
     //#define MINTHROTTLE 1120 // for Super Simple ESCs 10A
     //#define MINTHROTTLE 1064 // special ESC (simonk)
     //#define MINTHROTTLE 1050 // for brushed ESCs like ladybird
-    #define MINTHROTTLE 1150 // (*)
+    #define MINTHROTTLE 1120 // (*)
     //#define MINTHROTTLE 950 // (*)
 
     //#define MINTHROTTLE 1400 // (*)
@@ -70,8 +70,8 @@
     #define MINCOMMAND  1000
 
   /**********************************    I2C speed   ************************************/
-    //#define I2C_SPEED 100000L     //100kHz normal mode, this value must be used for a genuine WMP
-    #define I2C_SPEED 400000L   //400kHz fast mode, it works only with some WMP clones
+    #define I2C_SPEED 100000L     //100kHz normal mode, this value must be used for a genuine WMP
+    //#define I2C_SPEED 400000L   //400kHz fast mode, it works only with some WMP clones
 
   /***************************    Internal i2c Pullups   ********************************/
     /* enable internal I2C pull ups (in most cases it is better to use external pullups) */
@@ -135,7 +135,7 @@
       //#define Bobs_9DOF_V1     // BobsQuads 9DOF V1 with ITG3200, BMA180 & HMC5883L
       //#define Bobs_10DOF_BMP_V1 // BobsQuads 10DOF V1 with ITG3200, BMA180, HMC5883L & BMP180 - BMP180 is software compatible with BMP085
       //#define FLYDUINO_MPU
-      //#define CRIUS_AIO_PRO_V1
+      #define CRIUS_AIO_PRO_V1
       //#define DESQUARED6DOFV2GO  // DEsquared V2 with ITG3200 only
       //#define DESQUARED6DOFV4    // DEsquared V4 with MPU6050
       //#define LADYBIRD
@@ -154,7 +154,7 @@
       //#define WMP
       //#define ITG3200
       //#define L3G4200D
-      #define MPU6050       //combo + ACC
+      //#define MPU6050       //combo + ACC
 
       /* I2C accelerometer */
       //#define NUNCHUCK  // if you want to use the nunckuk connected to a WMP
@@ -169,11 +169,11 @@
 
       /* I2C barometer */
       //#define BMP085
-      #define MS561101BA
+      //#define MS561101BA
 
       /* I2C magnetometer */
       //#define HMC5843
-      #define HMC5883
+      //#define HMC5883
       //#define AK8975
       //#define MAG3110
 
@@ -304,7 +304,7 @@
 
     /* Servo mixing for heli 120 Use 1/10 fractions (ex.5 = 5/10 = 1/2)
                          {Coll,Nick,Roll} */
-    #define SERVO_NICK   { +10, -10, -0 }
+    #define SERVO_NICK   { +10, -10, 0 }
     #define SERVO_LEFT   { +10, +5, +10 } 
     #define SERVO_RIGHT  { +10, +5, -10 } 
 
@@ -613,7 +613,7 @@
 
   /*************************    INFLIGHT ACC Calibration    *****************************/
     /* This will activate the ACC-Inflight calibration if unchecked */
-    #define INFLIGHT_ACC_CALIBRATION
+    //#define INFLIGHT_ACC_CALIBRATION
 
   /**************************    Disable WMP power pin     *******************************/
     /* disable use of the POWER PIN
@@ -622,7 +622,7 @@
 
   /*******************************    OSD Switch    *************************************/
     // This adds a box that can be interpreted by OSD in activation status (to switch on/off the overlay for instance)
-  //#define OSD_SWITCH
+  #define OSD_SWITCH
 
   /**************************************************************************************/
   /***********************                  TX-related         **************************/
@@ -646,9 +646,9 @@
        note: only the RX PIN is used in case of NMEA mode, the GPS is not configured by multiwii
        in NMEA mode the GPS must be configured to output GGA and RMC NMEA sentences (which is generally the default conf for most GPS devices)
        at least 5Hz update rate. uncomment the first line to select the GPS serial port of the arduino */
-    //#define GPS_SERIAL 2 // should be 2 for flyduino v2. It's the serial port number on arduino MEGA
-    //#define GPS_BAUD   57600
-    #define GPS_BAUD   115200
+    #define GPS_SERIAL 2 // should be 2 for flyduino v2. It's the serial port number on arduino MEGA
+    /#define GPS_BAUD   57600
+    //#define GPS_BAUD   115200
 
 
    /* GPS protocol 
@@ -953,7 +953,7 @@
       SERVO5  = pin 12 (assigned to PPM or SPECTRUM CH10 on copter configuration)
       this option disable other software PWM's for servos - only five hardware controlled servos avaliable
       */ 
-    //#define MEGA_HW_PWM_SERVOS
+    #define MEGA_HW_PWM_SERVOS
 
   /********************************************************************/
   /****           Serial command handling - MSP and other          ****/
