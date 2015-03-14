@@ -881,8 +881,8 @@ void loop () {
           previousTime = micros();
         }
         #ifdef ALLOW_ARM_DISARM_VIA_TX_YAW
-          else if (conf.activate[BOXARM] == 0 && rcSticks == THR_LO + YAW_HI + PIT_CE + ROL_CE) go_arm();      // Arm via YAW
-        #endif
+          else if (conf.activate[BOXARM] == 0 /*&& rcSticks == THR_LO + YAW_HI + PIT_CE + ROL_CE*/) {/*blinkLED(2,40,i);*/ go_arm();}      // Arm via YAW
+        #endif*
         #ifdef ALLOW_ARM_DISARM_VIA_TX_ROLL
           else if (conf.activate[BOXARM] == 0 && rcSticks == THR_LO + YAW_CE + PIT_CE + ROL_HI) go_arm();      // Arm via ROLL
         #endif
