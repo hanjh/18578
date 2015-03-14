@@ -833,7 +833,7 @@ void loop () {
     if(rcDelayCommand == 20) {
       if(f.ARMED) {                   // actions during armed
         #ifdef ALLOW_ARM_DISARM_VIA_TX_YAW
-          if (conf.activate[BOXARM] == 0 && rcSticks == THR_LO + YAW_LO + PIT_CE + ROL_CE) go_disarm();    // Disarm via YAW
+          if (conf.activate[BOXARM] == 0 /*&& rcSticks == THR_LO + YAW_LO + PIT_CE + ROL_CE*/) go_disarm();    // Disarm via YAW
         #endif
         #ifdef ALLOW_ARM_DISARM_VIA_TX_ROLL
           if (conf.activate[BOXARM] == 0 && rcSticks == THR_LO + YAW_CE + PIT_CE + ROL_LO) go_disarm();    // Disarm via ROLL
@@ -1340,6 +1340,6 @@ void loop () {
 #endif
   mixTable();
   // do not update servos during unarmed calibration of sensors which are sensitive to vibration
-  if ( (f.ARMED) || ((!calibratingG) && (!calibratingA)) ) writeServos();
+  if ( (f.ARMED) || ((!calibratingG) && (!calibratingA)) ) //writeServos();
   writeMotors();
 }
