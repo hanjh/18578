@@ -548,7 +548,7 @@ void initOutput() {
       initializeSoftPWM();
       #if defined(A0_A1_PIN_HEX) || (NUMBER_MOTOR > 6)
         pinMode(5,INPUT);pinMode(6,INPUT);     // we reactivate the INPUT affectation for these two PINs
-        pinMode(A0,OUTPUT);pinMode(A1,OUTPUT);
+        pinMode(A0,OUTPUT);pinMode(A1,OUTPUT)
       #endif
     #endif
   #endif
