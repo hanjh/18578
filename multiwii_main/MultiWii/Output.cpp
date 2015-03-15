@@ -557,7 +557,7 @@ void initOutput() {
   #if defined(ESC_CALIB_CANNOT_FLY)
     writeAllMotors(ESC_CALIB_HIGH);
     blinkLED(2,20, 2);
-    delay(4000);
+    delay(4000); 
     writeAllMotors(ESC_CALIB_LOW);
     blinkLED(3,20, 2);
     while (1) {
