@@ -251,9 +251,6 @@ uint16_t intPowerTrigger1;
 #define THR_CE  (3<<(2*THROTTLE))
 #define THR_HI  (2<<(2*THROTTLE))
 
-int16_t failsafeEvents = 0;
-volatile int16_t failsafeCnt = 0;
-
 int16_t rcData[RC_CHANS];    // interval [1000;2000]
 int16_t rcSerial[8];         // interval [1000;2000] - is rcData coming from MSP
 int16_t rcCommand[4];        // interval [1000;2000] for THROTTLE and [-500;+500] for ROLL/PITCH/YAW
@@ -647,9 +644,6 @@ void go_arm() {
   #if defined(ONLYARMWHENFLAT)
     && f.ACC_CALIBRATED 
   #endif
-  #if defined(FAILSAFE)
-    && failsafeCnt < 2
-  #endif
     ) {
     if(!f.ARMED && !f.BARO_MODE) { // arm now!
       f.ARMED = 1;
@@ -684,8 +678,6 @@ void go_disarm() {
     #ifdef LOG_PERMANENT
       plog.disarm++;        // #disarm events
       plog.armed_time = armedTime ;   // lifetime in seconds
-      if (failsafeEvents) plog.failsafe++;      // #acitve failsafe @ disarm
-      if (i2c_errors_count > 10) plog.i2c++;           // #i2c errs @ disarm
       plog.running = 0;       // toggle @ arm & disarm to monitor for clean shutdown vs. powercut
       // write now.
       writePLog();
@@ -731,24 +723,6 @@ void loop () {
   if (currentTime > rcTime ) { // 50Hz
     rcTime = currentTime + 20000;
     computeRC();
-    // Failsafe routine - added by MIS
-    #if defined(FAILSAFE)
-      if ( failsafeCnt > (5*FAILSAFE_DELAY) && f.ARMED) {                  // Stabilize, and set Throttle to specified level
-        for(i=0; i<3; i++) rcData[i] = MIDRC;                               // after specified guard time after RC signal is lost (in 0.1sec)
-        rcData[THROTTLE] = conf.failsafe_throttle;
-        if (failsafeCnt > 5*(FAILSAFE_DELAY+FAILSAFE_OFF_DELAY)) {          // Turn OFF motors after specified Time (in 0.1sec)
-          go_disarm();     // This will prevent the copter to automatically rearm if failsafe shuts it down and prevents
-          f.OK_TO_ARM = 0; // to restart accidentely by just reconnect to the tx - you will have to switch off first to rearm
-        }
-        failsafeEvents++;
-      }
-      if ( failsafeCnt > (5*FAILSAFE_DELAY) && !f.ARMED) {  //Turn of "Ok To arm to prevent the motors from spinning after repowering the RX with low throttle and aux to arm
-          go_disarm();     // This will prevent the copter to automatically rearm if failsafe shuts it down and prevents
-          f.OK_TO_ARM = 0; // to restart accidentely by just reconnect to the tx - you will have to switch off first to rearm
-      }
-      failsafeCnt++;
-    #endif
-    // end of failsafe routine - next change is made with RcOptions setting
 
     // ------------------ STICKS COMMAND HANDLER --------------------
     // checking sticks positions
@@ -896,16 +870,14 @@ void loop () {
     for(i=0;i<CHECKBOXITEMS;i++)
       rcOptions[i] = (auxState & conf.activate[i])>0;
 
-    // note: if FAILSAFE is disable, failsafeCnt > 5*FAILSAFE_DELAY is always false
     #if ACC
-      if ( rcOptions[BOXANGLE] || (failsafeCnt > 5*FAILSAFE_DELAY) ) { 
+      if ( rcOptions[BOXANGLE]) ) { 
         // bumpless transfer to Level mode
         if (!f.ANGLE_MODE) {
           errorAngleI[ROLL] = 0; errorAngleI[PITCH] = 0;
           f.ANGLE_MODE = 1;
         }  
       } else {
-        // failsafe support
         f.ANGLE_MODE = 0;
       }
       if ( rcOptions[BOXHORIZON] ) {
