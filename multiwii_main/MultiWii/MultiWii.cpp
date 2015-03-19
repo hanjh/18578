@@ -66,10 +66,6 @@ const char boxnames[] PROGMEM = // names for dynamic generation of config GUI
   #if defined(CAMTRIG)
     "CAMTRIG;"
   #endif
-  #if GPS
-    "GPS HOME;"
-    "GPS HOLD;"
-  #endif
   #if defined(FIXEDWING) || defined(HELICOPTER)
     "PASSTHRU;"
   #endif
@@ -515,21 +511,6 @@ void annexCode() { // this code is excetuted at each loop and won't interfere wi
     }
   #endif
 
-  #if GPS & defined(GPS_LED_INDICATOR)       // modified by MIS to use STABLEPIN LED for number of sattelites indication
-    static uint32_t GPSLEDTime;              // - No GPS FIX -> LED blink at speed of incoming GPS frames
-    static uint8_t blcnt;                    // - Fix and sat no. bellow 5 -> LED off
-    if(currentTime > GPSLEDTime) {           // - Fix and sat no. >= 5 -> LED blinks, one blink for 5 sat, two blinks for 6 sat, three for 7 ...
-      if(f.GPS_FIX && GPS_numSat >= 5) {
-        if(++blcnt > 2*GPS_numSat) blcnt = 0;
-        GPSLEDTime = currentTime + 150000;
-        if(blcnt >= 10 && ((blcnt%2) == 0)) {STABLEPIN_ON;} else {STABLEPIN_OFF;}
-      }else{
-        if((GPS_update == 1) && !f.GPS_FIX) {STABLEPIN_ON;} else {STABLEPIN_OFF;}
-        blcnt = 0;
-      }
-    }
-  #endif
-
   #if defined(LOG_VALUES) && (LOG_VALUES >= 2)
     if (cycleTime > cycleTimeMax) cycleTimeMax = cycleTime; // remember highscore
     if (cycleTime < cycleTimeMin) cycleTimeMin = cycleTime; // remember lowscore
@@ -544,9 +525,6 @@ void annexCode() { // this code is excetuted at each loop and won't interfere wi
     #ifdef LCD_TELEMETRY
       #if BARO
         if ( (alt.EstAlt > BAROaltMax) ) BAROaltMax = alt.EstAlt;
-      #endif
-      #if GPS
-        if ( (GPS_speed > GPS_speedMax) ) GPS_speedMax = GPS_speed;
       #endif
     #endif
   }
@@ -618,9 +596,6 @@ void setup() {
     initOpenLRS();
   #endif
   initSensors();
-  #if defined(I2C_GPS) || defined(GPS_SERIAL) || defined(GPS_FROM_OSD)
-    GPS_set_pids();
-  #endif
   previousTime = micros();
   #if defined(GIMBAL)
    calibratingA = 512;
@@ -629,30 +604,6 @@ void setup() {
   calibratingB = 200;  // 10 seconds init_delay + 200 * 25 ms = 15 seconds before ground pressure settles
   #if defined(POWERMETER)
     for(uint8_t j=0; j<=PMOTOR_SUM; j++) pMeter[j]=0;
-  #endif
-  /************************************/
-  #if defined(GPS_SERIAL)
-    GPS_SerialInit();
-    for(uint8_t j=0;j<=5;j++){
-      GPS_NewData(); 
-      LEDPIN_ON
-      delay(20);
-      LEDPIN_OFF
-      delay(80);
-    }
-    if(!GPS_Present){
-      SerialEnd(GPS_SERIAL);
-      SerialOpen(0,SERIAL0_COM_SPEED);
-    }
-    #if !defined(GPS_PROMINI)
-      GPS_Present = 1;
-    #endif
-    GPS_Enable = GPS_Present;    
-  #endif
-  /************************************/
- 
-  #if defined(I2C_GPS) || defined(GPS_FROM_OSD)
-   GPS_Enable = 1;
   #endif
   
   #if defined(LCD_ETPP) || defined(LCD_LCD03) || defined(OLED_I2C_128x64) || defined(OLED_DIGOLE) || defined(LCD_TELEMETRY_STEP)
@@ -710,9 +661,6 @@ void go_arm() {
       #ifdef LCD_TELEMETRY // reset some values when arming
         #if BARO
           BAROaltMax = alt.EstAlt;
-        #endif
-        #if GPS
-          GPS_speedMax = 0;
         #endif
         #ifdef POWERMETER_HARD
           powerValueMaxMAH = 0;
@@ -842,9 +790,6 @@ void loop () {
         i=0;
         if (rcSticks == THR_LO + YAW_LO + PIT_LO + ROL_CE) {    // GYRO calibration
           calibratingG=512;
-          #if GPS 
-            GPS_reset_home_position();
-          #endif
           #if BARO
             calibratingB=10;  // calibrate baro to new ground level (10 * 25 ms = ~250 ms non blocking)
           #endif
@@ -1033,54 +978,6 @@ void loop () {
       }
     #endif
     
-    #if GPS
-      static uint8_t GPSNavReset = 1;
-      if (f.GPS_FIX && GPS_numSat >= 5 ) {
-        if (rcOptions[BOXGPSHOME]) {  // if both GPS_HOME & GPS_HOLD are checked => GPS_HOME is the priority
-          if (!f.GPS_HOME_MODE)  {
-            f.GPS_HOME_MODE = 1;
-            f.GPS_HOLD_MODE = 0;
-            GPSNavReset = 0;
-            #if defined(I2C_GPS)
-              GPS_I2C_command(I2C_GPS_COMMAND_START_NAV,0);        //waypoint zero
-            #else // SERIAL
-              GPS_set_next_wp(&GPS_home[LAT],&GPS_home[LON]);
-              nav_mode    = NAV_MODE_WP;
-            #endif
-          }
-        } else {
-          f.GPS_HOME_MODE = 0;
-          if (rcOptions[BOXGPSHOLD] && abs(rcCommand[ROLL])< AP_MODE && abs(rcCommand[PITCH]) < AP_MODE) {
-            if (!f.GPS_HOLD_MODE) {
-              f.GPS_HOLD_MODE = 1;
-              GPSNavReset = 0;
-              #if defined(I2C_GPS)
-                GPS_I2C_command(I2C_GPS_COMMAND_POSHOLD,0);
-              #else
-                GPS_hold[LAT] = GPS_coord[LAT];
-                GPS_hold[LON] = GPS_coord[LON];
-                GPS_set_next_wp(&GPS_hold[LAT],&GPS_hold[LON]);
-                nav_mode = NAV_MODE_POSHOLD;
-              #endif
-            }
-          } else {
-            f.GPS_HOLD_MODE = 0;
-            // both boxes are unselected here, nav is reset if not already done
-            if (GPSNavReset == 0 ) {
-              GPSNavReset = 1;
-              GPS_reset_nav();
-            }
-          }
-        }
-      } else {
-        f.GPS_HOME_MODE = 0;
-        f.GPS_HOLD_MODE = 0;
-        #if !defined(I2C_GPS)
-          nav_mode = NAV_MODE_NONE;
-        #endif
-      }
-    #endif
-    
     #if defined(FIXEDWING) || defined(HELICOPTER)
       if (rcOptions[BOXPASSTHRU]) {f.PASSTHRU_MODE = 1;}
       else {f.PASSTHRU_MODE = 0;}
@@ -1107,9 +1004,7 @@ void loop () {
         #endif    
       case 3:
         taskOrder++;
-        #if GPS
-          if(GPS_Enable) GPS_NewData();
-          break;
+        /* gps was here */
         #endif
       case 4:
         taskOrder++;
@@ -1185,25 +1080,6 @@ void loop () {
   #if defined(THROTTLE_ANGLE_CORRECTION)
     if(f.ANGLE_MODE || f.HORIZON_MODE) {
        rcCommand[THROTTLE]+= throttleAngleCorrection;
-    }
-  #endif
-  
-  #if GPS
-    if ( (f.GPS_HOME_MODE || f.GPS_HOLD_MODE) && f.GPS_FIX_HOME ) {
-      float sin_yaw_y = sin(att.heading*0.0174532925f);
-      float cos_yaw_x = cos(att.heading*0.0174532925f);
-      #if defined(NAV_SLEW_RATE)     
-        nav_rated[LON]   += constrain(wrap_18000(nav[LON]-nav_rated[LON]),-NAV_SLEW_RATE,NAV_SLEW_RATE);
-        nav_rated[LAT]   += constrain(wrap_18000(nav[LAT]-nav_rated[LAT]),-NAV_SLEW_RATE,NAV_SLEW_RATE);
-        GPS_angle[ROLL]   = (nav_rated[LON]*cos_yaw_x - nav_rated[LAT]*sin_yaw_y) /10;
-        GPS_angle[PITCH]  = (nav_rated[LON]*sin_yaw_y + nav_rated[LAT]*cos_yaw_x) /10;
-      #else 
-        GPS_angle[ROLL]   = (nav[LON]*cos_yaw_x - nav[LAT]*sin_yaw_y) /10;
-        GPS_angle[PITCH]  = (nav[LON]*sin_yaw_y + nav[LAT]*cos_yaw_x) /10;
-      #endif
-    } else {
-      GPS_angle[ROLL]  = 0;
-      GPS_angle[PITCH] = 0;
     }
   #endif
 
