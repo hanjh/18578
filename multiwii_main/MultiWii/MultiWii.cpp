@@ -712,13 +712,13 @@ void loop () {
   int16_t rc;
   int32_t prop = 0;
 
-  #if defined(SPEKTRUM)
-    if (spekFrameFlags == 0x01) readSpektrum();
-  #endif
+  //#if defined(SPEKTRUM)
+   // if (spekFrameFlags == 0x01) readSpektrum();
+  //#endif
   
-  #if defined(OPENLRSv2MULTI) 
-    Read_OpenLRS_RC();
-  #endif 
+  //#if defined(OPENLRSv2MULTI) 
+    //Read_OpenLRS_RC();
+  //#endif 
 
   if (currentTime > rcTime ) { // 50Hz
     rcTime = currentTime + 20000;
