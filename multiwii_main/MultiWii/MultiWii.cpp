@@ -871,7 +871,7 @@ void loop () {
       rcOptions[i] = (auxState & conf.activate[i])>0;
 
     #if ACC
-      if ( rcOptions[BOXANGLE]) ) { 
+      if ( rcOptions[BOXANGLE]) { 
         // bumpless transfer to Level mode
         if (!f.ANGLE_MODE) {
           errorAngleI[ROLL] = 0; errorAngleI[PITCH] = 0;
@@ -977,7 +977,7 @@ void loop () {
       case 3:
         taskOrder++;
         /* gps was here */
-        #endif
+        
       case 4:
         taskOrder++;
         #if SONAR
