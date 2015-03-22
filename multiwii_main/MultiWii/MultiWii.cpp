@@ -685,6 +685,8 @@ void go_disarm() {
   }
 }
 
+#define TEST_THROTTLE_VALUE  1350
+#define TEST_THROTTLE_RAMP_PER_CYCLE 10
 // ******** Main Loop *********
 void loop () {
   static uint8_t rcDelayCommand; // this indicates the number of time (multiple of RC measurement at 50Hz) the sticks must be maintained to run or switch off motors
@@ -709,6 +711,7 @@ void loop () {
   static uint32_t rcTime  = 0;
   static int16_t initialThrottleHold;
   static uint32_t timestamp_fixated = 0;
+  static int16_t current_throttle = 0;
   int16_t rc;
   int32_t prop = 0;
 
@@ -724,16 +727,16 @@ void loop () {
     rcTime = currentTime + 20000;
     computeRC();
     
-    if (rcData[THROTTLE] < MIDRC) {
-      //stay disarmed or disarm
-      if (f.ARMED)
+    if (f.ARMED && rcData[THROTTLE] < MIDRC) {
+      // disarm
         go_disarm();
+        current_throttle = 0;
     }
-    else
+    else if (!f.ARMED && rcData[THROTTLE] >= MIDRC)
     {
-      //stay armed or arm
-      if (!f.ARMED)
-        go_arm();
+      //arm
+      current_throttle = 1000;
+      go_arm();
     }
 
   } else { // not in rc loop
@@ -779,62 +782,22 @@ void loop () {
   currentTime = micros();
   cycleTime = currentTime - previousTime;
   previousTime = currentTime;
-
-  //***********************************
-  //**** Experimental FlightModes *****
-  //***********************************
-  #if defined(ACROTRAINER_MODE)
-    if(f.ANGLE_MODE){
-      if (abs(rcCommand[ROLL]) + abs(rcCommand[PITCH]) >= ACROTRAINER_MODE ) {
-        f.ANGLE_MODE=0;
-        f.HORIZON_MODE=0;
-        f.MAG_MODE=0;
-        f.BARO_MODE=0;
-        f.GPS_HOME_MODE=0;
-        f.GPS_HOLD_MODE=0;
-      }
-    }
-  #endif
-
- //*********************************** 
- 
-  #if MAG
-    if (abs(rcCommand[YAW]) <70 && f.MAG_MODE) {
-      int16_t dif = att.heading - magHold;
-      if (dif <= - 180) dif += 360;
-      if (dif >= + 180) dif -= 360;
-      if ( f.SMALL_ANGLES_25 ) rcCommand[YAW] -= dif*conf.pid[PIDMAG].P8>>5;
-    } else magHold = att.heading;
-  #endif
-
-  #if BARO && (!defined(SUPPRESS_BARO_ALTHOLD))
-    /* Smooth alt change routine , for slow auto and aerophoto modes (in general solution from alexmos). It's slowly increase/decrease 
-     * altitude proportional to stick movement (+/-100 throttle gives about +/-50 cm in 1 second with cycle time about 3-4ms)
-     */
-    if (f.BARO_MODE) {
-      static uint8_t isAltHoldChanged = 0;
-      static int16_t AltHoldCorr = 0;
-      if (abs(rcCommand[THROTTLE]-initialThrottleHold)>ALT_HOLD_THROTTLE_NEUTRAL_ZONE) {
-        // Slowly increase/decrease AltHold proportional to stick movement ( +100 throttle gives ~ +50 cm in 1 second with cycle time about 3-4ms)
-        AltHoldCorr+= rcCommand[THROTTLE] - initialThrottleHold;
-        if(abs(AltHoldCorr) > 512) {
-          AltHold += AltHoldCorr/512;
-          AltHoldCorr %= 512;
-        }
-        isAltHoldChanged = 1;
-      } else if (isAltHoldChanged) {
-        AltHold = alt.EstAlt;
-        isAltHoldChanged = 0;
-      }
-      rcCommand[THROTTLE] = initialThrottleHold + BaroPID;
-    }
-  #endif
-
-  #if defined(THROTTLE_ANGLE_CORRECTION)
-    if(f.ANGLE_MODE || f.HORIZON_MODE) {
-       rcCommand[THROTTLE]+= throttleAngleCorrection;
-    }
-  #endif
+  
+/* Set the input roll pitch and yaw */
+  //Pitch/roll/Yaw are [-500,500], throtttle is [1000,2000]
+  rcCommand[PITCH] = 0;
+  rcCommand[ROLL] = 0;
+  rcCommand[YAW] = 0;
+//////////////////////////////////////
+  
+/* Set throttle *//////////////////////
+  rcCommand[THROTTLE] = current_throttle; /*REMOVE THIS*/ //1000 = min value
+  //Slowly ramp to velocity
+  if (f.ARMED && current_throttle < TEST_THROTTLE_VALUE)
+  {
+    current_throttle += TEST_THROTTLE_RAMP_PER_CYCLE;
+  }
+///////////////////////////////////////
 
   //**** PITCH & ROLL & YAW PID ****
 #if PID_CONTROLLER == 1 // evolved oldschool
