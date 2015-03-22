@@ -686,7 +686,7 @@ void go_disarm() {
 }
 
 #define TEST_THROTTLE_VALUE  1350
-#define TEST_THROTTLE_RAMP_PER_CYCLE 10
+#define TEST_THROTTLE_RAMP_PER_CYCLE 1
 // ******** Main Loop *********
 void loop () {
   static uint8_t rcDelayCommand; // this indicates the number of time (multiple of RC measurement at 50Hz) the sticks must be maintained to run or switch off motors
