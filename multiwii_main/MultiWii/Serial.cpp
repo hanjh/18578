@@ -240,6 +240,10 @@ void SerialWrite(uint8_t port,uint8_t c){
   SerialSerialize(port,c);UartSendData(port);
 }
 
-void Debugprint(const char *s) {
+void DebugPrint(const char *s) {
   while (*s) SerialWrite(0, *s++ );
+}
+void DebugPrintInt(uint32_t i) {
+    char s[11];
+    DebugPrint(itoa(i,s,10));
 }
