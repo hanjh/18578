@@ -685,9 +685,10 @@ void go_disarm() {
   }
 }
 
-#define TEST_THROTTLE_VALUE  1350
+#define TEST_THROTTLE_VALUE  1400
 #define TEST_THROTTLE_RAMP_PER_CYCLE 1
-// ******** Main Loop *********
+#define ALT_HOLD_HEIGHT 40// centimeters
+// ******** Main Loop
 void loop () {
   static uint8_t rcDelayCommand; // this indicates the number of time (multiple of RC measurement at 50Hz) the sticks must be maintained to run or switch off motors
   static uint8_t rcSticks;       // this hold sticks position for command combos
@@ -731,12 +732,16 @@ void loop () {
       // disarm
         go_disarm();
         current_throttle = 0;
+        //rcCommand[THROTTLE] = 0;
+        DebugPrint("Stop recording");
     }
     else if (!f.ARMED && rcData[THROTTLE] >= MIDRC)
     {
       //arm
       current_throttle = 1000;
+      //rcCommand[THROTTLE] = 1000;
       go_arm();
+      DebugPrint("Start recording");
     }
 
   } else { // not in rc loop
@@ -757,6 +762,7 @@ void loop () {
         taskOrder++;
         #if BARO
           if (getEstimatedAltitude() !=0) break;
+          //DebugPrint("RAN ESTIMATED ALTITUDE\n");
         #endif    
       case 3:
         taskOrder++;
@@ -777,7 +783,19 @@ void loop () {
     }
   }
  
-  computeIMU();
+  computeIMU();  
+  //DebugPrint("Estimated altitude:\n");
+  //DebugPrintInt(alt.EstAlt);
+  //DebugPrint("\n");
+  //DebugPrint("Estimated z velocity\n");
+  //DebugPrintInt(alt.vario);
+  //DebugPrint("Estimated z velocity\n");
+  //DebugPrintInt(BaroPID);
+  //DebugPrint("\n");
+  if (alt.vario == 0) {
+    //  DebugPrint("CHECKHCK\n");
+  }
+  
   // Measure loop rate just afer reading the sensors
   currentTime = micros();
   cycleTime = currentTime - previousTime;
@@ -791,12 +809,18 @@ void loop () {
 //////////////////////////////////////
   
 /* Set throttle *//////////////////////
-  rcCommand[THROTTLE] = current_throttle; /*REMOVE THIS*/ //1000 = min value
+   /*REMOVE THIS*/ //1000 = min value
   //Slowly ramp to velocity
-  if (f.ARMED && current_throttle < TEST_THROTTLE_VALUE)
+  static bool reachedHeight = false;
+  if ( !reachedHeight && alt.EstAlt >= ALT_HOLD_HEIGHT) {
+    reachedHeight = true;
+    //initialThrottleHold = rcCommand[THROTTLE];
+  }
+  else if ( !reachedHeight && f.ARMED && current_throttle < TEST_THROTTLE_VALUE)
   {
     current_throttle += TEST_THROTTLE_RAMP_PER_CYCLE;
   }
+  rcCommand[THROTTLE] = current_throttle;
 ///////////////////////////////////////
 
   //**** PITCH & ROLL & YAW PID ****
@@ -807,14 +831,18 @@ void loop () {
   for(axis=0;axis<2;axis++) {
     rc = rcCommand[axis]<<1;
     error = rc - imu.gyroData[axis];
+    DebugPrintInt(axis);
+    DebugPrint("Poop\n");
+    DebugPrintInt(error);
+    DebugPrint("\n");
     errorGyroI[axis]  = constrain(errorGyroI[axis]+error,-16000,+16000);       // WindUp   16 bits is ok here
     if (abs(imu.gyroData[axis])>640) errorGyroI[axis] = 0;
 
     ITerm = (errorGyroI[axis]>>7)*conf.pid[axis].I8>>6;                        // 16 bits is ok here 16000/125 = 128 ; 128*250 = 32000
 
     PTerm = (int32_t)rc*conf.pid[axis].P8>>6;
-
-    if (f.ANGLE_MODE || f.HORIZON_MODE) { // axis relying on ACC
+    DebugPrintInt(conf.pid[axis].P8);
+    //if (f.ANGLE_MODE || f.HORIZON_MODE) { // axis relying on ACC
       // 50 degrees max inclination
       errorAngle         = constrain(rc + GPS_angle[axis],-500,+500) - att.angle[axis] + conf.angleTrim[axis]; //16 bits is ok here
       errorAngleI[axis]  = constrain(errorAngleI[axis]+errorAngle,-10000,+10000);                                                // WindUp     //16 bits is ok here
@@ -828,7 +856,7 @@ void loop () {
 
       ITerm              = ITermACC + ((ITerm-ITermACC)*prop>>9);
       PTerm              = PTermACC + ((PTerm-PTermACC)*prop>>9);
-    }
+    //}
 
     PTerm -= ((int32_t)imu.gyroData[axis]*dynP8[axis])>>6; // 32 bits is needed for calculation   
     
@@ -864,6 +892,14 @@ void loop () {
   
   axisPID[YAW] =  PTerm + ITerm;
   
+  //DebugPrint("Baropid\n");
+  //DebugPrintInt(BaroPID);
+  if (reachedHeight) {
+      //DebugPrint("\n");
+      //rcCommand[THROTTLE] = initialThrottleHold + BaroPID;
+      //DebugPrintInt(rcCommand[THROTTLE]);
+  }
+
 #elif PID_CONTROLLER == 2 // alexK
   #define GYRO_I_MAX 256
   #define ACC_I_MAX 256
@@ -930,6 +966,14 @@ void loop () {
 #else
   #error "*** you must set PID_CONTROLLER to one existing implementation"
 #endif
+
+  /////////////////// Thrust PID /////////////////////////
+  uint16_t kp_z = 1;
+  uint16_t kd_z = 1;
+  if (f.ARMED) {    
+     // rcCommand[THROTTLE] = /*rcCommand[THROTTLE]*/1000 + (kp_z * (DESIRED_ALT - alt.EstAlt)) + (kd_z * (0 - alt.vario));
+  }
+  ////////////////////////////////////////////////////////
   mixTable();
   // do not update servos during unarmed calibration of sensors which are sensitive to vibration
   if ( (f.ARMED) || ((!calibratingG) && (!calibratingA)) ) //writeServos();
