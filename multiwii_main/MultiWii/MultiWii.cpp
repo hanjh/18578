@@ -824,7 +824,6 @@ void loop () {
 ///////////////////////////////////////
 
   //**** PITCH & ROLL & YAW PID ****
-#if PID_CONTROLLER == 1 // evolved oldschool
   if ( f.HORIZON_MODE ) prop = min(max(abs(rcCommand[PITCH]),abs(rcCommand[ROLL])),512);
 
   // PITCH & ROLL
