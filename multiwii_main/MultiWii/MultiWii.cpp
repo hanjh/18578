@@ -640,13 +640,17 @@ void setup() {
 }
 
 void go_arm() {
+  DebugPrint("Called go_arm\n");
+  DebugPrintInt(calibratingG);
   if(calibratingG == 0
   #if defined(ONLYARMWHENFLAT)
     && f.ACC_CALIBRATED 
   #endif
     ) {
+        DebugPrint("got this far\n");
     if(!f.ARMED && !f.BARO_MODE) { // arm now!
       f.ARMED = 1;
+      DebugPrint("Actually just armed inside go_arm\n");
       headFreeModeHold = att.heading;
       magHold = att.heading;
       #if defined(VBAT)
@@ -685,7 +689,7 @@ void go_disarm() {
   }
 }
 
-#define TEST_THROTTLE_VALUE  1400
+#define TEST_THROTTLE_VALUE  1365
 #define TEST_THROTTLE_RAMP_PER_CYCLE 1
 #define ALT_HOLD_HEIGHT 40// centimeters
 // ******** Main Loop
@@ -728,12 +732,29 @@ void loop () {
     rcTime = currentTime + 20000;
     computeRC();
     
+    if (f.ARMED) {  
+    //DebugPrint("Armed\n");  
+    //DebugPrintInt(rcCommand[THROTTLE]);
+     // rcCommand[THROTTLE] = /*rcCommand[THROTTLE]*/1000 + (kp_z * (DESIRED_ALT - alt.EstAlt)) + (kd_z * (0 - alt.vario));
+  }
+  
     if (f.ARMED && rcData[THROTTLE] < MIDRC) {
       // disarm
         go_disarm();
         current_throttle = 0;
         //rcCommand[THROTTLE] = 0;
         DebugPrint("Stop recording");
+         lastGyro[0] = 0;
+         lastGyro[1] = 0;
+         errorAngleI[0] = 0;
+         errorAngleI[1] = 0;
+         errorGyroI_YAW = 0;
+         delta1[0] = 0;
+         delta1[1] = 0;
+         delta2[0] = 0;
+         delta2[1] = 0;
+         errorGyroI[0] = 0;
+         errorGyroI[1] = 0;
     }
     else if (!f.ARMED && rcData[THROTTLE] >= MIDRC)
     {
@@ -742,6 +763,7 @@ void loop () {
       //rcCommand[THROTTLE] = 1000;
       go_arm();
       DebugPrint("Start recording");
+      DebugPrintInt(rcData[THROTTLE]);
     }
 
   } else { // not in rc loop
@@ -812,11 +834,11 @@ void loop () {
    /*REMOVE THIS*/ //1000 = min value
   //Slowly ramp to velocity
   static bool reachedHeight = false;
-  if ( !reachedHeight && alt.EstAlt >= ALT_HOLD_HEIGHT) {
-    reachedHeight = true;
-    //initialThrottleHold = rcCommand[THROTTLE];
-  }
-  else if ( !reachedHeight && f.ARMED && current_throttle < TEST_THROTTLE_VALUE)
+  //if ( !reachedHeight && alt.EstAlt >= ALT_HOLD_HEIGHT) {
+  //  reachedHeight = true;
+  //  //initialThrottleHold = rcCommand[THROTTLE];
+  //}
+  if ( /*!reachedHeight &&*/ f.ARMED && current_throttle < TEST_THROTTLE_VALUE)
   {
     current_throttle += TEST_THROTTLE_RAMP_PER_CYCLE;
   }
@@ -840,7 +862,7 @@ void loop () {
     ITerm = (errorGyroI[axis]>>7)*conf.pid[axis].I8>>6;                        // 16 bits is ok here 16000/125 = 128 ; 128*250 = 32000
 
     PTerm = (int32_t)rc*conf.pid[axis].P8>>6;
-    DebugPrintInt(conf.pid[axis].P8);
+    //DebugPrintInt(conf.pid[axis].P8);
     //if (f.ANGLE_MODE || f.HORIZON_MODE) { // axis relying on ACC
       // 50 degrees max inclination
       errorAngle         = constrain(rc + GPS_angle[axis],-500,+500) - att.angle[axis] + conf.angleTrim[axis]; //16 bits is ok here
@@ -869,7 +891,25 @@ void loop () {
 
     axisPID[axis] =  PTerm + ITerm - DTerm;
   }
-
+  
+  /*
+  DebugPrint("Axis PID: {");
+  DebugPrintInt(axisPID[0]);
+  DebugPrint(",");
+  DebugPrintInt(axisPID[1]);
+  DebugPrint("}\n");
+  DebugPrint("Gyro Data: {");
+  DebugPrintInt(imu.gyroData[0]);
+  DebugPrint(",");
+  DebugPrintInt(imu.gyroData[1]);
+  DebugPrint("}\n");
+  DebugPrint("Accelerometer Data: {");
+  DebugPrintInt(att.angle[0]);
+  DebugPrint(",");
+  DebugPrintInt(att.angle[1]);
+  DebugPrint("}\n");
+  */
+  
   //YAW
   #define GYRO_P_MAX 300
   #define GYRO_I_MAX 250
@@ -904,12 +944,10 @@ void loop () {
   /////////////////// Thrust PID /////////////////////////
   uint16_t kp_z = 1;
   uint16_t kd_z = 1;
-  if (f.ARMED) {    
-     // rcCommand[THROTTLE] = /*rcCommand[THROTTLE]*/1000 + (kp_z * (DESIRED_ALT - alt.EstAlt)) + (kd_z * (0 - alt.vario));
-  }
+  
   ////////////////////////////////////////////////////////
   mixTable();
   // do not update servos during unarmed calibration of sensors which are sensitive to vibration
-  if ( (f.ARMED) || ((!calibratingG) && (!calibratingA)) ) //writeServos();
+  //if ( (f.ARMED) || ((!calibratingG) && (!calibratingA)) ) //writeServos();
   writeMotors();
 }
