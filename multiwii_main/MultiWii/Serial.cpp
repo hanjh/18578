@@ -247,3 +247,11 @@ void DebugPrintInt(uint32_t i) {
     char s[11];
     DebugPrint(itoa(i,s,10));
 }
+
+uint8_t SerialReadBuffer(char* buf, uint8_t n) {
+  int i = 0;
+  while (SerialAvailable(0) && i < n) 
+    buf[i] = (char)SerialRead(0);
+}
+
+

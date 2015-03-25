@@ -640,8 +640,8 @@ void setup() {
 }
 
 void go_arm() {
-  DebugPrint("Called go_arm\n");
-  DebugPrintInt(calibratingG);
+  //DebugPrint("Called go_arm\n");
+  //DebugPrintInt(calibratingG);
   if(calibratingG == 0
   #if defined(ONLYARMWHENFLAT)
     && f.ACC_CALIBRATED 
@@ -689,11 +689,12 @@ void go_disarm() {
   }
 }
 
-#define TEST_THROTTLE_VALUE  1365
+#define TEST_THROTTLE_VALUE  1200
 #define TEST_THROTTLE_RAMP_PER_CYCLE 1
 #define ALT_HOLD_HEIGHT 40// centimeters
 // ******** Main Loop
 void loop () {
+  //DebugPrint("I found the main loop!\n");
   static uint8_t rcDelayCommand; // this indicates the number of time (multiple of RC measurement at 50Hz) the sticks must be maintained to run or switch off motors
   static uint8_t rcSticks;       // this hold sticks position for command combos
   uint8_t axis,i;
@@ -762,8 +763,9 @@ void loop () {
       current_throttle = 1000;
       //rcCommand[THROTTLE] = 1000;
       go_arm();
-      DebugPrint("Start recording");
+      DebugPrint("Start recording: ");
       DebugPrintInt(rcData[THROTTLE]);
+      DebugPrint("\n");
     }
 
   } else { // not in rc loop
@@ -852,8 +854,10 @@ void loop () {
   for(axis=0;axis<2;axis++) {
     rc = rcCommand[axis]<<1;
     error = rc - imu.gyroData[axis];
+    DebugPrint("Axis is: ");
     DebugPrintInt(axis);
-    DebugPrint("Poop\n");
+    DebugPrint("\n");
+    //DebugPrint("Error is: ");
     DebugPrintInt(error);
     DebugPrint("\n");
     errorGyroI[axis]  = constrain(errorGyroI[axis]+error,-16000,+16000);       // WindUp   16 bits is ok here
