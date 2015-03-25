@@ -33,8 +33,13 @@ inline static void allocateOnDemand( IplImage **img, CvSize size, int depth, int
 int main(void)
 {
 	/* Create an object that decodes the input video stream. */
+    /*
 	CvCapture *input_video = cvCaptureFromFile(
 		"C:\\Documents and Settings\\David Stavens\\Desktop\\223B-Demo\\optical_flow_input.avi"
+		);
+        */
+	CvCapture* input_video = cvCaptureFromFile(
+        "flame.avi" 
 		);
 	if (input_video == NULL)
 	{
