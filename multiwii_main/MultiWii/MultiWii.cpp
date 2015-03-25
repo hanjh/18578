@@ -730,13 +730,21 @@ void loop () {
     //Read_OpenLRS_RC();
   //#endif 
   
-  if (currentTime > serialTime) {
+  //if (currentTime > serialTime) {
+#if defined(BB_SIO)
       serialTime = currentTime + 100000; //10hz
       char buf[65];
-      buf[65] = '\0';
-      SerialReadBuffer(&buf, 64);
-      DebugPrint(&buf);
-  }
+      int num = SerialReadBuffer(buf, 64);
+      if (num != 0)
+      {
+          DebugPrint(buf);
+          num = 0;
+      }
+#endif
+      //if (num  != 0)
+      //    DebugPrint("test\n");
+
+  //}
   
   if (currentTime > rcTime ) { // 50Hz
     rcTime = currentTime + 20000;
@@ -863,12 +871,12 @@ void loop () {
   for(axis=0;axis<2;axis++) {
     rc = rcCommand[axis]<<1;
     error = rc - imu.gyroData[axis];
-    DebugPrint("Axis is: ");
-    DebugPrintInt(axis);
-    DebugPrint("\n");
+    //DebugPrint("Axis is: ");
+    //DebugPrintInt(axis);
+    //DebugPrint("\n");
     //DebugPrint("Error is: ");
-    DebugPrintInt(error);
-    DebugPrint("\n");
+    //DebugPrintInt(error);
+    //DebugPrint("\n");
     errorGyroI[axis]  = constrain(errorGyroI[axis]+error,-16000,+16000);       // WindUp   16 bits is ok here
     if (abs(imu.gyroData[axis])>640) errorGyroI[axis] = 0;
 

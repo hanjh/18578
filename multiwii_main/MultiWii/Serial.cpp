@@ -250,8 +250,23 @@ void DebugPrintInt(uint32_t i) {
 
 uint8_t SerialReadBuffer(char* buf, uint8_t n) {
   int i = 0;
-  while (SerialAvailable(0) && i < n) 
+  int e = 0;
+  if (e = SerialAvailable(0)) {
+      //DebugPrint("available sensed\n");
+ // DebugPrintInt(e);  
+  while (i < e) {
+     //DebugPrintInt(e);
+     // DebugPrint("read a char\n");
     buf[i] = (char)SerialRead(0);
+    //DebugPrint("\n");
+    //DebugPrintInt(SerialRead(0));
+    //DebugPrint("\n");
+    i++;
+  }
+  buf[e] = '\0';
+  //DebugPrint(buf);
+  
+  }
+  return i;
 }
-
 

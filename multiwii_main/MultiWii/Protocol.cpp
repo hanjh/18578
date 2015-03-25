@@ -158,9 +158,12 @@ void serialCom() {
     HEADER_ARROW,
     HEADER_SIZE,
     HEADER_CMD,
-  } c_state[UART_NUMBER];// = IDLE;
-
-  for(n=0;n<UART_NUMBER;n++) {
+  } c_state[UART_NUMBER];// = IDLE
+  int start = 0;
+#if defined(BB_SIO)
+    start = 1;
+#endif
+    for(n=start;n<UART_NUMBER;n++) {
     #if !defined(PROMINI)
       CURRENTPORT=n;
     #endif

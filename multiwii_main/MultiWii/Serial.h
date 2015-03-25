@@ -27,4 +27,5 @@ void    SerialSerialize(uint8_t port,uint8_t a);
 void    UartSendData(uint8_t port);
 void    DebugPrint(const char *s);
 void    DebugPrintInt(uint32_t i);
+uint8_t SerialReadBuffer(char* buf, uint8_t n);
 #endif /* SERIAL_H_ */
