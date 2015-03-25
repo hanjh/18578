@@ -757,7 +757,7 @@ void loop () {
          errorGyroI[0] = 0;
          errorGyroI[1] = 0;
     }
-    else if (!f.ARMED && rcData[THROTTLE] >= MIDRC)
+    else if (!f.ARMED && rcData[THROTTLE] >= MIDRC + 10 /* Offset to avoid oopsy-on anti-feature */)
     {
       //arm
       current_throttle = 1000;
