@@ -715,6 +715,7 @@ void loop () {
   int16_t AngleRateTmp, RateError;
 #endif
   static uint32_t rcTime  = 0;
+  static uint32_t serialTime  = 0;
   static int16_t initialThrottleHold;
   static uint32_t timestamp_fixated = 0;
   static int16_t current_throttle = 0;
@@ -728,12 +729,16 @@ void loop () {
   //#if defined(OPENLRSv2MULTI) 
     //Read_OpenLRS_RC();
   //#endif 
-
+  
+  if (currentTime > serialTime) {
+      serialTime = currentTime + 100000; //10hz
+  }
+  
   if (currentTime > rcTime ) { // 50Hz
     rcTime = currentTime + 20000;
     computeRC();
     
-    if (f.ARMED) {  
+    if (f.ARMED) {
     //DebugPrint("Armed\n");  
     //DebugPrintInt(rcCommand[THROTTLE]);
      // rcCommand[THROTTLE] = /*rcCommand[THROTTLE]*/1000 + (kp_z * (DESIRED_ALT - alt.EstAlt)) + (kd_z * (0 - alt.vario));
@@ -757,7 +762,7 @@ void loop () {
          errorGyroI[0] = 0;
          errorGyroI[1] = 0;
     }
-    else if (!f.ARMED && rcData[THROTTLE] >= MIDRC + 10 /* Offset to avoid oopsy-on anti-feature */)
+    else if (!f.ARMED && rcData[THROTTLE] >= MIDRC + 10 /* Offset to avoid oopsy-on anti-feature when rx turned off */)
     {
       //arm
       current_throttle = 1000;
