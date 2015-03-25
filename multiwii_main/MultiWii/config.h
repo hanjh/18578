@@ -53,6 +53,10 @@
     //#define HELI_120_CCPM
     //#define HELI_90_DEG
 
+
+  /****************************    Serial I/O with BB enabled    *******************************/
+  
+  //#define BB_SIO
   /****************************    Motor minthrottle    *******************************/
     /* Set the minimum throttle command sent to the ESC (Electronic Speed Controller)
        This is the minimum value that allow motors to run at a idle speed  */
