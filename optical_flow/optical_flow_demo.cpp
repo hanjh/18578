@@ -38,9 +38,7 @@ int main(void)
 		"C:\\Documents and Settings\\David Stavens\\Desktop\\223B-Demo\\optical_flow_input.avi"
 		);
         */
-	CvCapture* input_video = cvCaptureFromFile(
-        "flame.avi" 
-		);
+	CvCapture* input_video = cvCaptureFromAVI("sample_video.avi");
 	if (input_video == NULL)
 	{
 		/* Either the video didn't exist OR it uses a codec OpenCV
@@ -49,6 +47,7 @@ int main(void)
 		fprintf(stderr, "Error: Can't open video.\n");
 		return -1;
 	}
+    printf("Opened the video successfully!\n");
 
 	/* Read the video's frame size out of the AVI. */
 	CvSize frame_size;
