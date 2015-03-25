@@ -732,6 +732,10 @@ void loop () {
   
   if (currentTime > serialTime) {
       serialTime = currentTime + 100000; //10hz
+      char buf[65];
+      buf[65] = '\0';
+      SerialReadBuffer(&buf, 64);
+      DebugPrint(&buf);
   }
   
   if (currentTime > rcTime ) { // 50Hz
