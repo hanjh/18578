@@ -38,7 +38,26 @@ int main(void)
 		"C:\\Documents and Settings\\David Stavens\\Desktop\\223B-Demo\\optical_flow_input.avi"
 		);
         */
-	CvCapture* input_video = cvCaptureFromAVI("sample_video.avi");
+	//CvCapture* input_video = cvCaptureFromFile("~/cmudocs/s15/18578/optical_flow/optical_flow_input.avi");
+    int x, y;
+    CvCapture* capture = cvCreateCameraCapture(0);// assuming means USB0
+    cvNamedWindow("title", CV_WINDOW_AUTOSIZE);
+    cvMoveWindow("title", x, y);
+    IplImage* frame;
+    while(1)
+    {
+        frame = cvQueryFrame(capture);
+        if (!frame) break;
+        cvShowImage("title", frame);
+        char c = cvWaitKey(33);
+        if (c ==27) break;
+    }
+    printf("got here \n");
+    return 0;
+    /*
+    */
+
+#if 0
 	if (input_video == NULL)
 	{
 		/* Either the video didn't exist OR it uses a codec OpenCV
@@ -273,4 +292,5 @@ int main(void)
 		if (current_frame < 0)						current_frame = 0;
 		if (current_frame >= number_of_frames - 1)	current_frame = number_of_frames - 2;
 	}
+#endif
 }
