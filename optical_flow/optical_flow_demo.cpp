@@ -38,12 +38,16 @@ int main(void)
 		"C:\\Documents and Settings\\David Stavens\\Desktop\\223B-Demo\\optical_flow_input.avi"
 		);
         */
-	//CvCapture* input_video = cvCaptureFromFile("~/cmudocs/s15/18578/optical_flow/optical_flow_input.avi");
-    int x, y;
+	//CvCapture* input_video = cvCaptureFromFile("optical_flow_input.avi");
+    //cvCaptureFromFile("optical_flow_input.avi");
+    
+    int x = 50;
+    int y = 50;
     CvCapture* capture = cvCreateCameraCapture(0);// assuming means USB0
-    cvNamedWindow("title", CV_WINDOW_AUTOSIZE);
-    cvMoveWindow("title", x, y);
+    //cvNamedWindow("title", CV_WINDOW_AUTOSIZE);
+    //cvMoveWindow("title", x, y);
     IplImage* frame;
+    /*
     while(1)
     {
         frame = cvQueryFrame(capture);
@@ -52,12 +56,9 @@ int main(void)
         char c = cvWaitKey(33);
         if (c ==27) break;
     }
-    printf("got here \n");
-    return 0;
-    /*
     */
+    CvCapture* input_video = capture;
 
-#if 0
 	if (input_video == NULL)
 	{
 		/* Either the video didn't exist OR it uses a codec OpenCV
@@ -126,13 +127,13 @@ int main(void)
 		 * AND flip the image vertically.  Flip is a shameless hack.  OpenCV reads
 		 * in AVIs upside-down by default.  (No comment :-))
 		 */
-		cvConvertImage(frame, frame1_1C, CV_CVTIMG_FLIP);
+		cvConvertImage(frame, frame1_1C, 0/*CV_CVTIMG_FLIP*/);
 
 		/* We'll make a full color backup of this frame so that we can draw on it.
 		 * (It's not the best idea to draw on the static memory space of cvQueryFrame().)
 		 */
 		allocateOnDemand( &frame1, frame_size, IPL_DEPTH_8U, 3 );
-		cvConvertImage(frame, frame1, CV_CVTIMG_FLIP);
+		cvConvertImage(frame, frame1, 0/*CV_CVTIMG_FLIP*/);
 
 		/* Get the second frame of video.  Same principles as the first. */
 		frame = cvQueryFrame( input_video );
@@ -142,7 +143,7 @@ int main(void)
 			return -1;
 		}
 		allocateOnDemand( &frame2_1C, frame_size, IPL_DEPTH_8U, 1 );
-		cvConvertImage(frame, frame2_1C, CV_CVTIMG_FLIP);
+		cvConvertImage(frame, frame2_1C, 0/*CV_CVTIMG_FLIP*/);
 
 		/* Shi and Tomasi Feature Tracking! */
 
@@ -281,7 +282,7 @@ int main(void)
 		 * The return value is the key the user pressed.
 		 */
 		int key_pressed;
-		key_pressed = cvWaitKey(0);
+		key_pressed = cvWaitKey(1);
 
 		/* If the users pushes "b" or "B" go back one frame.
 		 * Otherwise go forward one frame.
@@ -291,6 +292,8 @@ int main(void)
 		/* Don't run past the front/end of the AVI. */
 		if (current_frame < 0)						current_frame = 0;
 		if (current_frame >= number_of_frames - 1)	current_frame = number_of_frames - 2;
+        #if 0 
+        #endif
+        //current_frame++;
 	}
-#endif
 }
