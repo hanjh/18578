@@ -1,0 +1,98 @@
+From b226ddd92ab0f7a04d8df04f98e8226855972bac Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?H=C3=A5kan=20Engblom?= <h.engblom@tele-radio.com>
+Date: Thu, 17 Jan 2013 14:13:27 +0100
+Subject: [PATCH] Fix for duplicated interrupts when interrupts are sent from
+ PRU to ARM processor
+
+---
+ pru_sw/app_loader/interface/prussdrv.c |   50 ++++++++++++++++++++++++++++++--
+ 1 file changed, 48 insertions(+), 2 deletions(-)
+
+diff --git a/pru_sw/app_loader/interface/prussdrv.c b/pru_sw/app_loader/interface/prussdrv.c
+index 21e4ba4..9276d3a 100755
+--- a/pru_sw/app_loader/interface/prussdrv.c
++++ b/pru_sw/app_loader/interface/prussdrv.c
+@@ -338,11 +338,19 @@ int prussdrv_pru_write_memory(unsigned int pru_ram_id,
+ 
+ }
+ 
++/* Lock around this struct ?? Well maybe if several calls to 
++ * prussdrv_pruintc_init() are allowed
++ */
++static tpruss_intc_initdata saved_prussintc_init_data;
+ 
+ int prussdrv_pruintc_init(tpruss_intc_initdata * prussintc_init_data)
+ {
+     unsigned int *pruintc_io = (unsigned int *) prussdrv.intc_base;
+     unsigned int i, mask1, mask2;
++    
++    memcpy(&saved_prussintc_init_data, 
++           prussintc_init_data, 
++           sizeof(saved_prussintc_init_data));
+ 
+     pruintc_io[PRU_INTC_SIPR1_REG >> 2] = 0xFFFFFFFF;
+     pruintc_io[PRU_INTC_SIPR2_REG >> 2] = 0xFFFFFFFF;
+@@ -421,9 +429,7 @@ int prussdrv_pru_send_event(unsigned int eventnum)
+ int prussdrv_pru_wait_event(unsigned int pru_evtout_num)
+ {
+     int event_count;
+-    unsigned int *pruintc_io = (unsigned int *) prussdrv.intc_base;
+     read(prussdrv.fd[pru_evtout_num], &event_count, sizeof(int));
+-    pruintc_io[PRU_INTC_HIEISR_REG >> 2] = pru_evtout_num+2; 
+     return 0;
+ 
+ }
+@@ -431,10 +437,50 @@ int prussdrv_pru_wait_event(unsigned int pru_evtout_num)
+ int prussdrv_pru_clear_event(unsigned int eventnum)
+ {
+     unsigned int *pruintc_io = (unsigned int *) prussdrv.intc_base;
++    unsigned int i;
++    short channel = -1;
++
+     if (eventnum < 32)
+         pruintc_io[PRU_INTC_SECR1_REG >> 2] = 1 << eventnum;
+     else
+         pruintc_io[PRU_INTC_SECR2_REG >> 2] = 1 << (eventnum - 32);
++
++    /* Find channel from sys event nr */
++    for( i=0;
++         (saved_prussintc_init_data.sysevt_to_channel_map[i].sysevt != -1 &&
++          saved_prussintc_init_data.sysevt_to_channel_map[i].channel != -1 &&
++          i < NUM_PRU_SYS_EVTS);
++         i++) {
++        if(saved_prussintc_init_data.sysevt_to_channel_map[i].sysevt == 
++           eventnum) {
++            channel = saved_prussintc_init_data.sysevt_to_channel_map[i].channel;
++            break;
++        }
++    } 
++    if(channel == -1)
++        /* This is not correct and should never happen
++         * we cannot get an interrupt that is not in 
++         * saved_prussintc_init_data. Unless subsequent calls 
++         * to prussdrv_pruintc_init() are allowed when
++         * the application is running...
++         * And if it does happen, we cannot signal any error 
++         * due to the API documentation that as of now says 
++         * that no return value is reserved to indicate an error 
++         */
++        return 0;
++    
++    /* Find host from channel */
++    for(i=0;
++        (saved_prussintc_init_data.channel_to_host_map[i].channel != -1 &&
++         saved_prussintc_init_data.channel_to_host_map[i].host != -1 &&
++         i < NUM_PRU_CHANNELS);
++        i++) {
++        if(saved_prussintc_init_data.channel_to_host_map[i].channel == channel) {
++            pruintc_io[PRU_INTC_HIEISR_REG >> 2] = 
++                saved_prussintc_init_data.channel_to_host_map[i].host;
++            break;
++        }
++    }
+     return 0;
+ }
+ 
+-- 
+1.7.10.4
+

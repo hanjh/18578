@@ -2,9 +2,14 @@
  * Written by David Stavens (david.stavens@ai.stanford.edu)
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <cv.h>
 #include <highgui.h>
 #include <math.h>
+#include <time.h>
+
+
+#define PERFORMANCE_MONITORING 1 
 
 static const double pi = 3.14159265358979323846;
 
@@ -13,6 +18,14 @@ inline static double square(int a)
 	return a * a;
 }
 
+/* this can be bitwise optimized sign bit something etc */
+int cmpFloat(const void* a, const void* b) {
+    float x = *(float*)a - *(float*)b;
+    if (x >= 0.0) {
+        return 1;
+    }
+    return -1;
+}
 /* This is just an inline that allocates images.  I did this to reduce clutter in the
  * actual computer vision algorithmic code.  Basically it allocates the requested image
  * unless that image is already non-NULL.  It always leaves a non-NULL image as-is even
@@ -30,6 +43,9 @@ inline static void allocateOnDemand( IplImage **img, CvSize size, int depth, int
 	}
 }
 
+float xtot = 0.0f;
+float ytot = 0.0f;
+
 int main(void)
 {
 	/* Create an object that decodes the input video stream. */
@@ -44,21 +60,25 @@ int main(void)
     int x = 50;
     int y = 50;
     CvCapture* capture = cvCreateCameraCapture(0);// assuming means USB0
+    //cvSetCaptureProperty(capture,CV_CAP_PROP_FPS,60); DOESN'T WORK
     //cvNamedWindow("title", CV_WINDOW_AUTOSIZE);
     //cvMoveWindow("title", x, y);
     IplImage* frame;
-    /*
+    
+   /*int po = 0; 
     while(1)
     {
         frame = cvQueryFrame(capture);
         if (!frame) break;
-        cvShowImage("title", frame);
+        //cvShowImage("title", frame);
         char c = cvWaitKey(33);
         if (c ==27) break;
+        printf("test %d \n",po++);
     }
-    */
+   */ 
+    
     CvCapture* input_video = capture;
-
+    
 	if (input_video == NULL)
 	{
 		/* Either the video didn't exist OR it uses a codec OpenCV
@@ -75,15 +95,14 @@ int main(void)
 		(int) cvGetCaptureProperty( input_video, CV_CAP_PROP_FRAME_HEIGHT );
 	frame_size.width =
 		(int) cvGetCaptureProperty( input_video, CV_CAP_PROP_FRAME_WIDTH );
-
 	/* Determine the number of frames in the AVI. */
-	long number_of_frames;
+	//long number_of_frames;
 	/* Go to the end of the AVI (ie: the fraction is "1") */
-	cvSetCaptureProperty( input_video, CV_CAP_PROP_POS_AVI_RATIO, 1. );
+	//cvSetCaptureProperty( input_video, CV_CAP_PROP_POS_AVI_RATIO, 1. );
 	/* Now that we're at the end, read the AVI position in frames */
-	number_of_frames = (int) cvGetCaptureProperty( input_video, CV_CAP_PROP_POS_FRAMES );
+	//number_of_frames = (int) cvGetCaptureProperty( input_video, CV_CAP_PROP_POS_FRAMES );
 	/* Return to the beginning */
-	cvSetCaptureProperty( input_video, CV_CAP_PROP_POS_FRAMES, 0. );
+	//cvSetCaptureProperty( input_video, CV_CAP_PROP_POS_FRAMES, 0. );
 
 	/* Create a windows called "Optical Flow" for visualizing the output.
 	 * Have the window automatically change its size to match the output.
@@ -93,6 +112,9 @@ int main(void)
 	long current_frame = 0;
 	while(true)
 	{
+#if PERFORMANCE_MONITORING
+        clock_t start = clock();
+#endif
 		static IplImage *frame = NULL, *frame1 = NULL, *frame1_1C = NULL, *frame2_1C = NULL, *eig_image = NULL, *temp_image = NULL, *pyramid1 = NULL, *pyramid2 = NULL;
 
 		/* Go to the frame we want.  Important if multiple frames are queried in
@@ -100,8 +122,7 @@ int main(void)
 		 * first call to this is actually not needed. (Because the correct position
 		 * is set outsite the for() loop.)
 		 */
-		cvSetCaptureProperty( input_video, CV_CAP_PROP_POS_FRAMES, current_frame );
-
+		//cvSetCaptureProperty( input_video, CV_CAP_PROP_POS_FRAMES, current_frame );
 		/* Get the next frame of the video.
 		 * IMPORTANT!  cvQueryFrame() always returns a pointer to the _same_
 		 * memory location.  So successive calls:
@@ -151,8 +172,6 @@ int main(void)
 		allocateOnDemand( &eig_image, frame_size, IPL_DEPTH_32F, 1 );
 		allocateOnDemand( &temp_image, frame_size, IPL_DEPTH_32F, 1 );
 
-		/* Preparation: This array will contain the features found in frame 1. */
-		CvPoint2D32f frame1_features[400];
 
 		/* Preparation: BEFORE the function call this variable is the array size
 		 * (or the maximum number of features to find).  AFTER the function call
@@ -164,6 +183,9 @@ int main(void)
 		 * change the number of features you use for an accuracy/speed tradeoff analysis.
 		 */
 		number_of_features = 400;
+
+		/* Preparation: This array will contain the features found in frame 1. */
+		CvPoint2D32f frame1_features[number_of_features];
 
 		/* Actually run the Shi and Tomasi algorithm!!
 		 * "frame1_1C" is the input image.
@@ -180,18 +202,18 @@ int main(void)
 		/* Pyramidal Lucas Kanade Optical Flow! */
 
 		/* This array will contain the locations of the points from frame 1 in frame 2. */
-		CvPoint2D32f frame2_features[400];
+		CvPoint2D32f frame2_features[number_of_features];
 
 		/* The i-th element of this array will be non-zero if and only if the i-th feature of
 		 * frame 1 was found in frame 2.
 		 */
-		char optical_flow_found_feature[400];
+		char optical_flow_found_feature[number_of_features];
 
 		/* The i-th element of this array is the error in the optical flow for the i-th feature
 		 * of frame1 as found in frame 2.  If the i-th feature was not found (see the array above)
 		 * I think the i-th entry in this array is undefined.
 		 */
-		float optical_flow_feature_error[400];
+		float optical_flow_feature_error[number_of_features];
 
 		/* This is the window size to use to avoid the aperture problem (see slide "Optical Flow: Overview"). */
 		CvSize optical_flow_window = cvSize(3,3);
@@ -224,7 +246,50 @@ int main(void)
 		 * "0" means disable enhancements.  (For example, the second array isn't pre-initialized with guesses.)
 		 */
 		cvCalcOpticalFlowPyrLK(frame1_1C, frame2_1C, pyramid1, pyramid2, frame1_features, frame2_features, number_of_features, optical_flow_window, 5, optical_flow_found_feature, optical_flow_feature_error, optical_flow_termination_criteria, 0 );
-		
+      
+     /*
+      * Calculate all the vectors and put them in a table
+      */
+      float feature_vectors[2][number_of_features];
+      int num_found_features = 0;
+      for (int i = 0; i < number_of_features;i++) {
+        if (optical_flow_found_feature[i] == 0) {//feature wasn't present on second image
+            feature_vectors[0][i] = -1 * FLT_MAX;
+            feature_vectors[1][i] = -1 * FLT_MAX;
+        }
+        else {
+            feature_vectors[0][i] = frame2_features[i].x - frame1_features[i].x; //dx = frame2_x - frame1_x
+            feature_vectors[1][i] = frame2_features[i].y - frame1_features[i].y; //dy = frame2_y - frame1_y 
+            num_found_features++;
+            //printf("Floats?? %f %f \n",feature_vectors[i][0],feature_vectors[i][1]);
+        }
+      }
+      //median-ing filter
+      qsort(feature_vectors[0],number_of_features,sizeof(float),cmpFloat);
+      qsort(feature_vectors[1],number_of_features,sizeof(float),cmpFloat);
+        
+      /*for (int i = 0; i < number_of_features; i++) {
+        printf("%f\n",feature_vectors[1][i]);
+      }
+      */
+      printf("%f\n",FLT_MAX);
+      float medianX = feature_vectors[0][(2*number_of_features - num_found_features)/2];
+      float medianY = feature_vectors[1][(2*number_of_features - num_found_features)/2];
+      printf("medians are X: \n%f\n, Y: \n%f \n",medianX,medianY);
+      printf("Absolutes are X: \n%f\n, Y:\n%f \n",xtot,ytot);
+      xtot += medianX;
+      ytot -= medianY;
+#if PERFORMANCE_MONITORING
+    clock_t stop = clock();
+    //double elapsed = (double)(stop - start) * 1000.0 / CLOCKS_PER_SECOND;
+    printf("Elapsed time: %f\n", (double)(stop-start));
+#endif
+           /* !!!!! This is the end of the useful algorithm, the rest is for visualization !!!!!! */
+#if 0
+
+        //findHomography(frame1_features, frame2_features, 0, 3);
+
+        //#if 0
 		/* For fun (and debugging :)), let's draw the flow field. */
 		for(int i = 0; i < number_of_features; i++)
 		{
@@ -281,9 +346,10 @@ int main(void)
 		 * If the argument is 0 then it waits forever otherwise it waits that number of milliseconds.
 		 * The return value is the key the user pressed.
 		 */
-		int key_pressed;
+	//	#if 0
+        int key_pressed;
 		key_pressed = cvWaitKey(1);
-
+//#if 0
 		/* If the users pushes "b" or "B" go back one frame.
 		 * Otherwise go forward one frame.
 		 */
@@ -292,8 +358,8 @@ int main(void)
 		/* Don't run past the front/end of the AVI. */
 		if (current_frame < 0)						current_frame = 0;
 		if (current_frame >= number_of_frames - 1)	current_frame = number_of_frames - 2;
-        #if 0 
-        #endif
         //current_frame++;
-	}
+  //      #endif
+ #endif
+ }
 }
