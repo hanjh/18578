@@ -193,6 +193,7 @@ uint8_t SerialRead(uint8_t port) {
       if(port == 0) return Serial.read();
     #else
       #if (ARDUINO >= 100)
+      ssdfadf
         if(port == 0) USB_Flush(USB_CDC_TX);
       #endif
       if(port == 0) return USB_Recv(USB_CDC_RX);      
@@ -241,8 +242,12 @@ void SerialWrite(uint8_t port,uint8_t c){
 }
 
 void DebugPrint(const char *s) {
-  while (*s) SerialWrite(0, *s++ );
+   while (*s) {
+      while (SerialUsedTXBuff(0) >= TX_BUFFER_SIZE+50) {}
+      SerialWrite(0, *s++ );
+    }
 }
+
 void DebugPrintInt(uint32_t i) {
     char s[11];
     DebugPrint(itoa(i,s,10));
@@ -267,6 +272,21 @@ uint8_t SerialReadBuffer(char* buf, uint8_t n) {
   //DebugPrint(buf);
   
   }
+  //flush();
   return i;
 }
 
+
+bool SerialReadCommand(commands_t* commands) {
+    char buf[sizeof(commands_t)+1];
+    
+    uint8_t numRead = SerialReadBuffer(buf,sizeof(commands_t));
+    
+    if (numRead == sizeof(commands_t)) { //correct number read
+        memcpy(commands,buf,sizeof(commands_t));
+    }
+    
+    ///memcpy(commands,buf,
+    
+
+}

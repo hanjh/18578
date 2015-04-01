@@ -90,6 +90,20 @@ typedef struct {
   int16_t  accADC[3];
 } imu_t;
 
+//Structure to hold commands from beaglebone
+typedef struct {
+  //Multi-purpose command buffer
+  char cmdBuffer[16];
+  //Position Errors
+  int16_t  ex;
+  int16_t  ey;
+  int16_t  ez;
+  //X,Y,Z velocities
+  int16_t  vx;
+  int16_t  vy;
+  int16_t  vz;
+} commands_t __attribute__((packed));
+
 typedef struct {
   uint8_t  vbat;               // battery voltage in 0.1V steps
   uint16_t intPowerMeterSum;

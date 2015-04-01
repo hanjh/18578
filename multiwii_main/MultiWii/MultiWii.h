@@ -197,6 +197,9 @@ extern int16_t lookupThrottleRC[11];
   extern int8_t  cosZ;
 #endif
 
+extern bool bbSerialMode;
 void annexCode();
+
+
 
 #endif /* MULTIWII_H_ */

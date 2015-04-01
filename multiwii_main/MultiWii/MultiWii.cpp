@@ -689,9 +689,14 @@ void go_disarm() {
   }
 }
 
-#define TEST_THROTTLE_VALUE  1200
+#define TEST_THROTTLE_VALUE  1390
 #define TEST_THROTTLE_RAMP_PER_CYCLE 1
 #define ALT_HOLD_HEIGHT 40// centimeters
+
+bool bbSerialMode = false;
+
+
+
 // ******** Main Loop
 void loop () {
   //DebugPrint("I found the main loop!\n");
@@ -730,8 +735,8 @@ void loop () {
     //Read_OpenLRS_RC();
   //#endif 
   
-  //if (currentTime > serialTime) {
-#if defined(BB_SIO)
+
+if (bbSerialMode && currentTime > serialTime) {
       serialTime = currentTime + 100000; //10hz
       char buf[65];
       int num = SerialReadBuffer(buf, 64);
@@ -740,7 +745,7 @@ void loop () {
           DebugPrint(buf);
           num = 0;
       }
-#endif
+}
       //if (num  != 0)
       //    DebugPrint("test\n");
 
@@ -755,7 +760,14 @@ void loop () {
     //DebugPrintInt(rcCommand[THROTTLE]);
      // rcCommand[THROTTLE] = /*rcCommand[THROTTLE]*/1000 + (kp_z * (DESIRED_ALT - alt.EstAlt)) + (kd_z * (0 - alt.vario));
   }
-  
+    if (rcData[ROLL] > MIDRC + 100) {
+      bbSerialMode = true;
+      DebugPrint("Serial mode true\n");
+    }
+    else if (rcData[ROLL] < MIDRC - 100) {
+      bbSerialMode = false;
+      DebugPrint("Serial mode false\n");
+    }
     if (f.ARMED && rcData[THROTTLE] < MIDRC) {
       // disarm
         go_disarm();
@@ -871,10 +883,9 @@ void loop () {
   for(axis=0;axis<2;axis++) {
     rc = rcCommand[axis]<<1;
     error = rc - imu.gyroData[axis];
-    //DebugPrint("Axis is: ");
+      //    DebugPrint("Axis is: ");
     //DebugPrintInt(axis);
     //DebugPrint("\n");
-    //DebugPrint("Error is: ");
     //DebugPrintInt(error);
     //DebugPrint("\n");
     errorGyroI[axis]  = constrain(errorGyroI[axis]+error,-16000,+16000);       // WindUp   16 bits is ok here
@@ -887,6 +898,11 @@ void loop () {
     //if (f.ANGLE_MODE || f.HORIZON_MODE) { // axis relying on ACC
       // 50 degrees max inclination
       errorAngle         = constrain(rc + GPS_angle[axis],-500,+500) - att.angle[axis] + conf.angleTrim[axis]; //16 bits is ok here
+    //   DebugPrint("Axis is: ");
+    //DebugPrintInt(axis);
+    //DebugPrint("\n");
+    //DebugPrintInt(errorAngle);
+    //DebugPrint("\n");
       errorAngleI[axis]  = constrain(errorAngleI[axis]+errorAngle,-10000,+10000);                                                // WindUp     //16 bits is ok here
 
       PTermACC           = ((int32_t)errorAngle*conf.pid[PIDLEVEL].P8)>>7; // 32 bits is needed for calculation: errorAngle*P8 could exceed 32768   16 bits is ok for result
@@ -909,7 +925,14 @@ void loop () {
     delta1[axis]   = delta;
  
     DTerm = ((int32_t)DTerm*dynD8[axis])>>5;        // 32 bits is needed for calculation
-
+     //      DebugPrint("P,I,D ");
+    //DebugPrint("\n");
+    //DebugPrintInt(PTerm);
+    //DebugPrint("\n");
+    //DebugPrintInt(ITerm);
+    //DebugPrint("\n");
+    //DebugPrintInt(DTerm);
+    //DebugPrint("\n");
     axisPID[axis] =  PTerm + ITerm - DTerm;
   }
   
@@ -972,3 +995,4 @@ void loop () {
   //if ( (f.ARMED) || ((!calibratingG) && (!calibratingA)) ) //writeServos();
   writeMotors();
 }
+

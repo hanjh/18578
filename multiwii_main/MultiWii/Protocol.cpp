@@ -148,7 +148,7 @@ void serializeNames(PGM_P s) {
 }
 
 void serialCom() {
-  uint8_t c,n;  
+  uint8_t c,n = 0;  
   static uint8_t offset[UART_NUMBER];
   static uint8_t dataSize[UART_NUMBER];
   static enum _serial_state {
@@ -159,11 +159,10 @@ void serialCom() {
     HEADER_SIZE,
     HEADER_CMD,
   } c_state[UART_NUMBER];// = IDLE
-#if defined(BB_SIO)
-    for(n=1;n<UART_NUMBER;n++) {
-#else
-    for(n=0;n<UART_NUMBER;n++) {
-#endif
+  if (bbSerialMode) {
+      n = 1;
+  }
+  for(n;n<UART_NUMBER;n++) {
     #if !defined(PROMINI)
       CURRENTPORT=n;
     #endif
