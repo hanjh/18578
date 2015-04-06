@@ -1,3 +1,5 @@
+
+
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -12,20 +14,16 @@
 
 #define DEVICE_ID "/dev/fcontroller"
 #define BAUD_RATE B115200
-int main() {
+int initSerialCom() {
     struct termios toptions;
     int fd;
 
-    fd = open(DEVICE_ID, O_RDWR | O_NOCTTY);
-    usleep(850000);
-    //fd = open(DEVICE_ID, O_RDWR | O_NONBLOCK);
+    fd = open(DEVICE_ID, O_RDWR | O_NONBLOCK);
     if (fd == -1) {
         printf("failed to open device %s \n", DEVICE_ID);
     }
-    printf("Fd = %d\n",fd);
-    int ret = tcgetattr(fd,&toptions);
-    if (ret < 0) {
-       printf("failed to get term attributes: %d, errno = %s\n",ret, strerror(errno));
+    if (tcgetattr(fd,&toptions) < 0) {
+       printf("failed to get term attributes\n");
     }
     
     //Set baud rate

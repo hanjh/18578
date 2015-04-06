@@ -9,8 +9,6 @@
 #include <time.h>
 
 
-#define PERFORMANCE_MONITORING 1 
-
 static const double pi = 3.14159265358979323846;
 
 inline static double square(int a)
@@ -26,11 +24,7 @@ int cmpFloat(const void* a, const void* b) {
     }
     return -1;
 }
-/* This is just an inline that allocates images.  I did this to reduce clutter in the
- * actual computer vision algorithmic code.  Basically it allocates the requested image
- * unless that image is already non-NULL.  It always leaves a non-NULL image as-is even
- * if that image's size, depth, and/or channels are different than the request.
- */
+
 inline static void allocateOnDemand( IplImage **img, CvSize size, int depth, int channels )
 {
 	if ( *img != NULL )	return;
@@ -46,83 +40,42 @@ inline static void allocateOnDemand( IplImage **img, CvSize size, int depth, int
 float xtot = 0.0f;
 float ytot = 0.0f;
 
-int main(void)
+CvCapture* input_video;
+IplImage* frame;
+CvSize frame_size;
+
+int opticalFlowInit(void)
 {
-	/* Create an object that decodes the input video stream. */
-    /*
-	CvCapture *input_video = cvCaptureFromFile(
-		"C:\\Documents and Settings\\David Stavens\\Desktop\\223B-Demo\\optical_flow_input.avi"
-		);
-        */
-	//CvCapture* input_video = cvCaptureFromFile("optical_flow_input.avi");
-    //cvCaptureFromFile("optical_flow_input.avi");
-    
-    int x = 50;
-    int y = 50;
-    CvCapture* capture = cvCreateCameraCapture(0);// assuming means USB0
-    //cvSetCaptureProperty(capture,CV_CAP_PROP_FPS,60); DOESN'T WORK
-    //cvNamedWindow("title", CV_WINDOW_AUTOSIZE);
-    //cvMoveWindow("title", x, y);
-    IplImage* frame;
-    
-   /*int po = 0; 
-    while(1)
-    {
-        frame = cvQueryFrame(capture);
-        if (!frame) break;
-        //cvShowImage("title", frame);
-        char c = cvWaitKey(33);
-        if (c ==27) break;
-        printf("test %d \n",po++);
-    }
-   */ 
-    
-    CvCapture* input_video = capture;
+    input_video = cvCreateCameraCapture(0);// assuming means USB0
     
 	if (input_video == NULL)
 	{
-		/* Either the video didn't exist OR it uses a codec OpenCV
-		 * doesn't support.
-		 */
 		fprintf(stderr, "Error: Can't open video.\n");
 		return -1;
 	}
     printf("Opened the video successfully!\n");
 
 	/* Read the video's frame size out of the AVI. */
-	CvSize frame_size;
 	frame_size.height =
 		(int) cvGetCaptureProperty( input_video, CV_CAP_PROP_FRAME_HEIGHT );
 	frame_size.width =
 		(int) cvGetCaptureProperty( input_video, CV_CAP_PROP_FRAME_WIDTH );
-	/* Determine the number of frames in the AVI. */
-	//long number_of_frames;
-	/* Go to the end of the AVI (ie: the fraction is "1") */
-	//cvSetCaptureProperty( input_video, CV_CAP_PROP_POS_AVI_RATIO, 1. );
-	/* Now that we're at the end, read the AVI position in frames */
-	//number_of_frames = (int) cvGetCaptureProperty( input_video, CV_CAP_PROP_POS_FRAMES );
-	/* Return to the beginning */
-	//cvSetCaptureProperty( input_video, CV_CAP_PROP_POS_FRAMES, 0. );
 
 	/* Create a windows called "Optical Flow" for visualizing the output.
 	 * Have the window automatically change its size to match the output.
 	 */
 	cvNamedWindow("Optical Flow", CV_WINDOW_AUTOSIZE);
+}
 
-	long current_frame = 0;
-	while(true)
-	{
-#if PERFORMANCE_MONITORING
-        clock_t start = clock();
-#endif
+int opticalFlowDemoFrameInit()
+{
+    return 0;
+}
+
+int calculateOpticalFlow()
+{
 		static IplImage *frame = NULL, *frame1 = NULL, *frame1_1C = NULL, *frame2_1C = NULL, *eig_image = NULL, *temp_image = NULL, *pyramid1 = NULL, *pyramid2 = NULL;
 
-		/* Go to the frame we want.  Important if multiple frames are queried in
-		 * the loop which they of course are for optical flow.  Note that the very
-		 * first call to this is actually not needed. (Because the correct position
-		 * is set outsite the for() loop.)
-		 */
-		//cvSetCaptureProperty( input_video, CV_CAP_PROP_POS_FRAMES, current_frame );
 		/* Get the next frame of the video.
 		 * IMPORTANT!  cvQueryFrame() always returns a pointer to the _same_
 		 * memory location.  So successive calls:
@@ -182,7 +135,7 @@ int main(void)
 		/* I'm hardcoding this at 400.  But you should make this a #define so that you can
 		 * change the number of features you use for an accuracy/speed tradeoff analysis.
 		 */
-		number_of_features = 2000;
+		number_of_features = 400;
 
 		/* Preparation: This array will contain the features found in frame 1. */
 		CvPoint2D32f frame1_features[number_of_features];
@@ -197,7 +150,14 @@ int main(void)
 		 * "frame1_features" will contain the feature points.
 		 * "number_of_features" will be set to a value <= 400 indicating the number of feature points found.
 		 */
-		cvGoodFeaturesToTrack(frame1_1C, eig_image, temp_image, frame1_features, &number_of_features, .01, .01, NULL);
+		cvGoodFeaturesToTrack(  frame1_1C, 
+                                eig_image, 
+                                temp_image, 
+                                frame1_features, 
+                                &number_of_features, 
+                                .01, 
+                                .01, 
+                                NULL );
 
 		/* Pyramidal Lucas Kanade Optical Flow! */
 
@@ -245,7 +205,19 @@ int main(void)
 		 * "optical_flow_termination_criteria" is as described above (how long the algorithm should look).
 		 * "0" means disable enhancements.  (For example, the second array isn't pre-initialized with guesses.)
 		 */
-		cvCalcOpticalFlowPyrLK(frame1_1C, frame2_1C, pyramid1, pyramid2, frame1_features, frame2_features, number_of_features, optical_flow_window, 5, optical_flow_found_feature, optical_flow_feature_error, optical_flow_termination_criteria, 0 );
+		cvCalcOpticalFlowPyrLK( frame1_1C, 
+                                frame2_1C, 
+                                pyramid1, 
+                                pyramid2, 
+                                frame1_features, 
+                                frame2_features, 
+                                number_of_features, 
+                                optical_flow_window, 
+                                5, 
+                                optical_flow_found_feature, 
+                                optical_flow_feature_error, 
+                                optical_flow_termination_criteria, 
+                                0 );
       
      /*
       * Calculate all the vectors and put them in a table
@@ -272,7 +244,7 @@ int main(void)
         printf("%f\n",feature_vectors[1][i]);
       }
       */
-      printf("%f\n",FLT_MAX);
+      //printf("%f\n",FLT_MAX);
       float medianX = feature_vectors[0][(2*number_of_features - num_found_features)/2];
       float medianY = feature_vectors[1][(2*number_of_features - num_found_features)/2];
       printf("medians are X: \n%f\n, Y: \n%f \n",medianX,medianY);
@@ -360,5 +332,4 @@ int main(void)
 		if (current_frame >= number_of_frames - 1)	current_frame = number_of_frames - 2;
         //current_frame++;
   #endif
- }
 }
