@@ -12,15 +12,16 @@
     #error
 #endif
 
-#define DEVICE_ID "/dev/fcontroller"
+//#define DEVICE_ID "/dev/fcontroller"
 #define BAUD_RATE B115200
-int initSerialCom() {
+int initSerialCom(char* deviceID) 
+{
     struct termios toptions;
     int fd;
 
-    fd = open(DEVICE_ID, O_RDWR | O_NONBLOCK);
+    fd = open(deviceID, O_RDWR | O_NONBLOCK);
     if (fd == -1) {
-        printf("failed to open device %s \n", DEVICE_ID);
+        printf("failed to open device %s \n", deviceID);
     }
     if (tcgetattr(fd,&toptions) < 0) {
        printf("failed to get term attributes\n");
@@ -52,7 +53,11 @@ int initSerialCom() {
     if (tcsetattr(fd,TCSAFLUSH,&toptions) < 0) {
         printf("couldn't set term attributes\n");
     }
-    
+    return fd;
+}
+
+int serialRead(int fd)
+{
     int n;
     char inbuf[256];
     while(1) {
@@ -73,7 +78,17 @@ int initSerialCom() {
             }
         } while (n != 0);
     }
-    
     close(fd);
     return 0;
 }
+
+int serialWrite()
+{
+}
+
+int serialClose()
+{
+}
+
+
+
