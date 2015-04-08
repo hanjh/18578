@@ -79,8 +79,8 @@ void computeIMU () {
    unit = n power of 2 */
 // this one is also used for ALT HOLD calculation, should not be changed
 #ifndef ACC_LPF_FACTOR
-  #define ACC_LPF_FACTOR 6 // that means a LPF of 36
-  //#define ACC_LPF_FACTOR 4 // that means a LPF of 16
+  //#define ACC_LPF_FACTOR 6 // that means a LPF of 36
+  #define ACC_LPF_FACTOR 4 // that means a LPF of 16
 
 #endif
 
