@@ -736,21 +736,19 @@ void loop () {
   //#if defined(OPENLRSv2MULTI) 
     //Read_OpenLRS_RC();
   //#endif 
-  
 
 if (bbSerialMode && currentTime > serialTime) {
-      
     serialTime = currentTime + 5000; //~200Hz
       
     fcontroller_data_t sendData;
     sendData.command = ReceivedGo;
-    sendData.rotation[0] = 0;
-    sendData.rotation[1] = 1;
-    sendData.rotation[2] = 2;
-    sendData.rVelocity[0] = 3;
-    sendData.rVelocity[1] = 4;
-    sendData.rVelocity[2] = 5;
-    
+    sendData.rotation[0] = 0xFFFE;
+    sendData.rotation[1] = 0xFDFC;
+    sendData.rotation[2] = 0xFBFA;
+    sendData.rVelocity[0] = 0xF9F8;
+    sendData.rVelocity[1] = 0xF7F6;
+    sendData.rVelocity[2] = 0xF5F4;
+    //DebugPrint("iterated\n");
     sendBytes((char*)&sendData, sizeof(fcontroller_data_t));
       
     commands_t* commands;
