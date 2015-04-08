@@ -689,11 +689,12 @@ void go_disarm() {
   }
 }
 
-#define TEST_THROTTLE_VALUE  1390
+#define TEST_THROTTLE_HIGH  1400
+#define TEST_THROTTLE_LOW 1200
 #define TEST_THROTTLE_RAMP_PER_CYCLE 1
 #define ALT_HOLD_HEIGHT 40// centimeters
 
-bool bbSerialMode = false;
+bool bbSerialMode = true;
 
 
 
@@ -724,6 +725,7 @@ void loop () {
   static int16_t initialThrottleHold;
   static uint32_t timestamp_fixated = 0;
   static int16_t current_throttle = 0;
+  static int16_t goal_throttle = 0;
   int16_t rc;
   int32_t prop = 0;
 
@@ -737,19 +739,32 @@ void loop () {
   
 
 if (bbSerialMode && currentTime > serialTime) {
-      serialTime = currentTime + 100000; //10hz
-      char buf[65];
-      int num = SerialReadBuffer(buf, 64);
-      if (num != 0)
-      {
-          DebugPrint(buf);
-          num = 0;
-      }
+      
+    serialTime = currentTime + 5000; //~200Hz
+      
+    fcontroller_data_t sendData;
+    sendData.command = ReceivedGo;
+    sendData.rotation[0] = 0;
+    sendData.rotation[1] = 1;
+    sendData.rotation[2] = 2;
+    sendData.rVelocity[0] = 3;
+    sendData.rVelocity[1] = 4;
+    sendData.rVelocity[2] = 5;
+    
+    sendBytes((char*)&sendData, sizeof(fcontroller_data_t));
+      
+    commands_t* commands;
+    bool gotCommand = readCommand(commands);
+  
+    if (gotCommand)
+    {
+      commands->cmdBuffer[15] = '\n';
+      //DebugPrint(input->cmdBuffer);
+      int x = commands->ex;
+      //DebugPrintInt(x);
+      //DebugPrint("\n");
+    }
 }
-      //if (num  != 0)
-      //    DebugPrint("test\n");
-
-  //}
   
   if (currentTime > rcTime ) { // 50Hz
     rcTime = currentTime + 20000;
@@ -762,18 +777,16 @@ if (bbSerialMode && currentTime > serialTime) {
   }
     if (rcData[ROLL] > MIDRC + 100) {
       bbSerialMode = true;
-      DebugPrint("Serial mode true\n");
     }
     else if (rcData[ROLL] < MIDRC - 100) {
       bbSerialMode = false;
-      DebugPrint("Serial mode false\n");
     }
     if (f.ARMED && rcData[THROTTLE] < MIDRC) {
       // disarm
         go_disarm();
         current_throttle = 0;
         //rcCommand[THROTTLE] = 0;
-        DebugPrint("Stop recording");
+        //DebugPrint("Stop recording");
          lastGyro[0] = 0;
          lastGyro[1] = 0;
          errorAngleI[0] = 0;
@@ -785,16 +798,21 @@ if (bbSerialMode && currentTime > serialTime) {
          delta2[1] = 0;
          errorGyroI[0] = 0;
          errorGyroI[1] = 0;
+         goal_throttle = 0;
+    }
+    else if (f.ARMED && rcData[YAW] >= MIDRC+10) {
+        goal_throttle = TEST_THROTTLE_HIGH;
     }
     else if (!f.ARMED && rcData[THROTTLE] >= MIDRC + 10 /* Offset to avoid oopsy-on anti-feature when rx turned off */)
     {
       //arm
       current_throttle = 1000;
+      goal_throttle = TEST_THROTTLE_LOW;
       //rcCommand[THROTTLE] = 1000;
       go_arm();
-      DebugPrint("Start recording: ");
-      DebugPrintInt(rcData[THROTTLE]);
-      DebugPrint("\n");
+      //DebugPrint("Start recording: ");
+      //DebugPrintInt(rcData[THROTTLE]);
+      //DebugPrint("\n");
     }
 
   } else { // not in rc loop
@@ -869,7 +887,7 @@ if (bbSerialMode && currentTime > serialTime) {
   //  reachedHeight = true;
   //  //initialThrottleHold = rcCommand[THROTTLE];
   //}
-  if ( /*!reachedHeight &&*/ f.ARMED && current_throttle < TEST_THROTTLE_VALUE)
+  if ( /*!reachedHeight &&*/ f.ARMED && current_throttle < goal_throttle)
   {
     current_throttle += TEST_THROTTLE_RAMP_PER_CYCLE;
   }
@@ -897,12 +915,12 @@ if (bbSerialMode && currentTime > serialTime) {
     //DebugPrintInt(conf.pid[axis].P8);
     //if (f.ANGLE_MODE || f.HORIZON_MODE) { // axis relying on ACC
       // 50 degrees max inclination
-      errorAngle         = constrain(rc + GPS_angle[axis],-500,+500) - att.angle[axis] + conf.angleTrim[axis]; //16 bits is ok here
-    //   DebugPrint("Axis is: ");
-    //DebugPrintInt(axis);
-    //DebugPrint("\n");
-    //DebugPrintInt(errorAngle);
-    //DebugPrint("\n");
+      errorAngle = constrain(rc + GPS_angle[axis],-500,+500) - att.angle[axis] + conf.angleTrim[axis]; //16 bits is ok here
+      //DebugPrint("Axis is: ");
+      //DebugPrintInt(axis);
+      //DebugPrint("\n");
+      //DebugPrintInt(errorAngle);
+      //DebugPrint("\n");
       errorAngleI[axis]  = constrain(errorAngleI[axis]+errorAngle,-10000,+10000);                                                // WindUp     //16 bits is ok here
 
       PTermACC           = ((int32_t)errorAngle*conf.pid[PIDLEVEL].P8)>>7; // 32 bits is needed for calculation: errorAngle*P8 could exceed 32768   16 bits is ok for result
@@ -933,7 +951,7 @@ if (bbSerialMode && currentTime > serialTime) {
     //DebugPrint("\n");
     //DebugPrintInt(DTerm);
     //DebugPrint("\n");
-    axisPID[axis] =  PTerm + ITerm - DTerm;
+    axisPID[axis] = PTerm + ITerm - DTerm;
   }
   
   /*
@@ -973,7 +991,7 @@ if (bbSerialMode && currentTime > serialTime) {
   
   ITerm = constrain((int16_t)(errorGyroI_YAW>>13),-GYRO_I_MAX,+GYRO_I_MAX);
   
-  axisPID[YAW] =  PTerm + ITerm;
+  axisPID[YAW] = PTerm + ITerm;
 
   
   //DebugPrint("Baropid\n");
@@ -991,6 +1009,20 @@ if (bbSerialMode && currentTime > serialTime) {
   
   ////////////////////////////////////////////////////////
   mixTable();
+/*    DebugPrint("Throttle:\n");
+  DebugPrintInt(motor[0]);
+  DebugPrint("\n");
+  DebugPrintInt(motor[1]);
+  DebugPrint("\n");
+  DebugPrintInt(motor[2]);
+  DebugPrint("\n");
+  DebugPrintInt(motor[3]);
+  DebugPrint("\n");
+  DebugPrintInt(motor[4]);
+  DebugPrint("\n");
+  DebugPrintInt(motor[5]);
+  DebugPrint("\n");
+  */
   // do not update servos during unarmed calibration of sensors which are sensitive to vibration
   //if ( (f.ARMED) || ((!calibratingG) && (!calibratingA)) ) //writeServos();
   writeMotors();

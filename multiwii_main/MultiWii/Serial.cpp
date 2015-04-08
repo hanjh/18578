@@ -193,7 +193,6 @@ uint8_t SerialRead(uint8_t port) {
       if(port == 0) return Serial.read();
     #else
       #if (ARDUINO >= 100)
-      ssdfadf
         if(port == 0) USB_Flush(USB_CDC_TX);
       #endif
       if(port == 0) return USB_Recv(USB_CDC_RX);      
@@ -248,10 +247,21 @@ void DebugPrint(const char *s) {
     }
 }
 
+void sendBytes(const char *s, int n) {
+    int numWritten = 0;
+    while (numWritten < n) {
+      while (SerialUsedTXBuff(0) >= TX_BUFFER_SIZE+50) {}
+      SerialWrite(0, *s++ );
+      numWritten++;
+    }
+}
+
 void DebugPrintInt(uint32_t i) {
     char s[11];
     DebugPrint(itoa(i,s,10));
 }
+
+
 
 uint8_t SerialReadBuffer(char* buf, uint8_t n) {
   int i = 0;
@@ -277,16 +287,22 @@ uint8_t SerialReadBuffer(char* buf, uint8_t n) {
 }
 
 
-bool SerialReadCommand(commands_t* commands) {
-    char buf[sizeof(commands_t)+1];
+bool readCommand(commands_t* commands) {
     
-    uint8_t numRead = SerialReadBuffer(buf,sizeof(commands_t));
+    char* buf = (char*) commands;
     
-    if (numRead == sizeof(commands_t)) { //correct number read
-        memcpy(commands,buf,sizeof(commands_t));
+    if (SerialAvailable(0)) 
+    {
+        int numRead = 0;
+        while(numRead < sizeof(commands_t)) 
+        {
+            if (SerialAvailable(0))
+            {
+                buf[numRead] = SerialRead(0);
+                numRead++;
+            }
+        }
+        return true;
     }
-    
-    ///memcpy(commands,buf,
-    
-
+    return false;
 }

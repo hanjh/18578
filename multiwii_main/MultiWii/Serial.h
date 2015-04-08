@@ -1,6 +1,8 @@
 #ifndef SERIAL_H_
 #define SERIAL_H_
 
+#include "types.h"
+
 #if defined(MEGA)
   #define UART_NUMBER 4
 #elif defined(PROMICRO)
@@ -28,4 +30,7 @@ void    UartSendData(uint8_t port);
 void    DebugPrint(const char *s);
 void    DebugPrintInt(uint32_t i);
 uint8_t SerialReadBuffer(char* buf, uint8_t n);
+void sendBytes(const char *, int n) ;
+bool readCommand(commands_t* commands) ;
+
 #endif /* SERIAL_H_ */

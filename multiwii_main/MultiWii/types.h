@@ -104,6 +104,19 @@ typedef struct {
   int16_t  vz;
 } commands_t __attribute__((packed));
 
+enum FCCommand{
+    ReceivedGo,
+    ReceivedArm,
+    ReceivedStop
+};
+
+typedef struct {
+    FCCommand command;
+    uint16_t rotation[3];
+    uint16_t rVelocity[3];
+} fcontroller_data_t;
+
+
 typedef struct {
   uint8_t  vbat;               // battery voltage in 0.1V steps
   uint16_t intPowerMeterSum;
