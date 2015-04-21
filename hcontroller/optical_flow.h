@@ -1,7 +1,3 @@
-
-
-
-
 #ifndef OPTICAL_FLOW_H
 #define OPTICAL_FLOW_H
 

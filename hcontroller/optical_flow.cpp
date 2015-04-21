@@ -8,7 +8,6 @@
 #include <math.h>
 #include <time.h>
 
-
 static const double pi = 3.14159265358979323846;
 
 inline static double square(int a)
@@ -46,7 +45,7 @@ CvSize frame_size;
 
 int opticalFlowInit(void)
 {
-    input_video = cvCreateCameraCapture(0);// assuming means USB0
+    input_video = cvCreateCameraCapture(0); // this fails if PSEye is not video0
     
 	if (input_video == NULL)
 	{
@@ -69,6 +68,7 @@ int opticalFlowInit(void)
 
 int opticalFlowDemoFrameInit()
 {
+    // display the image here 
     return 0;
 }
 
