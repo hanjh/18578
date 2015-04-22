@@ -90,10 +90,28 @@ typedef struct {
   int16_t  accADC[3];
 } imu_t;
 
+
+enum FCCommand : uint16_t
+{
+    FC_ReceivedGo,
+    FC_ReadyToFly,
+    FC_SerialError,
+    FC_Failure,
+    FC_Flying
+};
+
+enum JetCommand : uint16_t
+{
+    JC_Idle,
+    JC_WarmUp,
+    JC_AltHold,
+    JC_ErrorStop
+};
 //Structure to hold commands from beaglebone
 typedef struct {
+  uint32_t header;
   //Multi-purpose command buffer
-  char cmdBuffer[16];
+  JetCommand command;
   //Position Errors
   int16_t  ex;
   int16_t  ey;
@@ -102,20 +120,19 @@ typedef struct {
   int16_t  vx;
   int16_t  vy;
   int16_t  vz;
-} commands_t __attribute__((packed));
+  //Yaw/heading error
+  int16_t  heading;
+  uint32_t footer;
+} commands_t;// __attribute__((packed));
 
-enum FCCommand : uint8_t
-{
-    ReceivedGo,
-    ReceivedArm,
-    ReceivedStop
-};
 
 typedef struct {
+    uint32_t header;
     uint16_t rotation[3];
     uint16_t rVelocity[3];
     FCCommand command;
-    char padding[1];
+    char    padding[2];
+    uint32_t footer;
 } fcontroller_data_t;
 
 

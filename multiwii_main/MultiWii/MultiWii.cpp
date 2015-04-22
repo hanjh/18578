@@ -155,6 +155,19 @@ int32_t  AltHold; // in cm
 int16_t  sonarAlt;
 int16_t  BaroPID = 0;
 int16_t  errorAltitudeI = 0;
+bool bbSerialMode;
+
+enum ControllerState
+{
+    CS_Idle,
+    CS_WaitToWarmUp,
+    CS_WarmUp,
+    CS_Flying,
+    CS_Stopped,
+    CS_Failed
+};
+
+ControllerState controllerState;
 
 // **************
 // gyro+acc IMU
@@ -636,6 +649,8 @@ void setup() {
     //plog.running = 0;       // toggle on arm & disarm to monitor for clean shutdown vs. powercut
   #endif
   
+  bbSerialMode = false;
+  controllerState = CS_Idle;
   debugmsg_append_str("initialization completed\n");
 }
 
@@ -689,130 +704,159 @@ void go_disarm() {
   }
 }
 
-#define TEST_THROTTLE_HIGH  1400
+#define TEST_THROTTLE_HIGH  1550
 #define TEST_THROTTLE_LOW 1200
 #define TEST_THROTTLE_RAMP_PER_CYCLE 1
 #define ALT_HOLD_HEIGHT 40// centimeters
 
-bool bbSerialMode = true;
+
 
 
 
 // ******** Main Loop
 void loop () {
-  //DebugPrint("I found the main loop!\n");
-  static uint8_t rcDelayCommand; // this indicates the number of time (multiple of RC measurement at 50Hz) the sticks must be maintained to run or switch off motors
-  static uint8_t rcSticks;       // this hold sticks position for command combos
-  uint8_t axis,i;
-  int16_t error,errorAngle;
-  int16_t delta;
-  int16_t PTerm = 0,ITerm = 0,DTerm, PTermACC, ITermACC;
-  static int16_t lastGyro[2] = {0,0};
-  static int16_t errorAngleI[2] = {0,0};
-#if PID_CONTROLLER == 1
-  static int32_t errorGyroI_YAW;
-  static int16_t delta1[2],delta2[2];
-  static int16_t errorGyroI[2] = {0,0};
-#elif PID_CONTROLLER == 2
-  static int16_t delta1[3],delta2[3];
-  static int32_t errorGyroI[3] = {0,0,0};
-  static int16_t lastError[3] = {0,0,0};
-  int16_t deltaSum;
-  int16_t AngleRateTmp, RateError;
-#endif
-  static uint32_t rcTime  = 0;
-  static uint32_t serialTime  = 0;
-  static int16_t initialThrottleHold;
-  static uint32_t timestamp_fixated = 0;
-  static int16_t current_throttle = 0;
-  static int16_t goal_throttle = 0;
-  int16_t rc;
-  int32_t prop = 0;
-
-  //#if defined(SPEKTRUM)
-   // if (spekFrameFlags == 0x01) readSpektrum();
-  //#endif
-  
-  //#if defined(OPENLRSv2MULTI) 
-    //Read_OpenLRS_RC();
-  //#endif 
-
-if (bbSerialMode && currentTime > serialTime) {
-    serialTime = currentTime + 5000; //~200Hz
-      
+    static uint8_t rcDelayCommand; // this indicates the number of time (multiple of RC measurement at 50Hz) the sticks must be maintained to run or switch off motors
+    static uint8_t rcSticks;       // this hold sticks position for command combos
+    uint8_t axis,i;
+    int16_t error,errorAngle;
+    int16_t delta;
+    int16_t PTerm = 0,ITerm = 0,DTerm, PTermACC, ITermACC;
+    static int16_t lastGyro[2] = {0,0};
+    static int16_t errorAngleI[2] = {0,0};
+    static int32_t errorGyroI_YAW;
+    static int16_t delta1[2],delta2[2];
+    static int16_t errorGyroI[2] = {0,0};
+    static uint32_t rcTime  = 0;
+    static uint32_t serialTime  = 0;
+    static int16_t initialThrottleHold;
+    static uint32_t timestamp_fixated = 0;
+    static int16_t current_throttle = 0;
+    static int16_t goal_throttle = 0;
+    int16_t rc;
+    int32_t prop = 0;
     fcontroller_data_t sendData;
-    sendData.command = ReceivedGo;
-    sendData.rotation[0] = 0xFFFE;
-    sendData.rotation[1] = 0xFDFC;
-    sendData.rotation[2] = 0xFBFA;
-    sendData.rVelocity[0] = 0xF9F8;
-    sendData.rVelocity[1] = 0xF7F6;
-    sendData.rVelocity[2] = 0xF5F4;
-    //DebugPrint("iterated\n");
-    sendBytes((char*)&sendData, sizeof(fcontroller_data_t));
+    commands_t* commands; //Commands from jetson
+    bool serialError = false;
       
-    commands_t* commands;
-    bool gotCommand = readCommand(commands);
-  
-    if (gotCommand)
-    {
-      commands->cmdBuffer[15] = '\n';
-      //DebugPrint(input->cmdBuffer);
-      int x = commands->ex;
-      //DebugPrintInt(x);
-      //DebugPrint("\n");
-    }
-}
-  
-  if (currentTime > rcTime ) { // 50Hz
-    rcTime = currentTime + 20000;
-    computeRC();
+    //DebugPrintInt(controllerState);
+    //DebugPrint("\n");
     
-    if (f.ARMED) {
-    //DebugPrint("Armed\n");  
-    //DebugPrintInt(rcCommand[THROTTLE]);
-     // rcCommand[THROTTLE] = /*rcCommand[THROTTLE]*/1000 + (kp_z * (DESIRED_ALT - alt.EstAlt)) + (kd_z * (0 - alt.vario));
-  }
+    //Check for manual stop
+    if (rcData[THROTTLE] < MIDRC &&
+        controllerState != CS_Idle)
+    {
+        controllerState = CS_Stopped;
+    }
+    
+    //Check for serial mode
     if (rcData[ROLL] > MIDRC + 100) {
       bbSerialMode = true;
     }
     else if (rcData[ROLL] < MIDRC - 100) {
       bbSerialMode = false;
     }
-    if (f.ARMED && rcData[THROTTLE] < MIDRC) {
-      // disarm
-        go_disarm();
-        current_throttle = 0;
-        //rcCommand[THROTTLE] = 0;
-        //DebugPrint("Stop recording");
-         lastGyro[0] = 0;
-         lastGyro[1] = 0;
-         errorAngleI[0] = 0;
-         errorAngleI[1] = 0;
-         errorGyroI_YAW = 0;
-         delta1[0] = 0;
-         delta1[1] = 0;
-         delta2[0] = 0;
-         delta2[1] = 0;
-         errorGyroI[0] = 0;
-         errorGyroI[1] = 0;
-         goal_throttle = 0;
+    
+    //First read commands from Jetson (most cases will be no command)
+    bool gotCommand = readCommand(commands); //reading the commands into the struct
+    
+    if (gotCommand) //this will only be true periodically as the flight controller updates more quickly
+    {
+        //Make sure there isn't an error
+        //If it is, will set SerialError command at end of function
+        serialError = (commands->header == (commands->ex ^ commands->ey)) &&
+                      (commands->footer == (commands->vx ^ commands->vy));
+        controllerState = CS_Stopped;
     }
-    else if (f.ARMED && rcData[YAW] >= MIDRC+10) {
+      //arm
+  //current_throttle = 1000;
+  //goal_throttle = TEST_THROTTLE_LOW;
+  //go_arm();
+    if (controllerState == CS_Stopped)
+    {
+        if (f.ARMED)
+        {
+            go_disarm();
+        }
+        //Don't just return, need to call mixTables() to actually disarm.
+    }
+    else if (controllerState == CS_Idle)
+    {
+        //Are these nessecary?
+        current_throttle = 0;
+        lastGyro[0] = 0;
+        lastGyro[1] = 0;
+        errorAngleI[0] = 0;
+        errorAngleI[1] = 0;
+        errorGyroI_YAW = 0;
+        delta1[0] = 0;
+        delta1[1] = 0;
+        delta2[0] = 0;
+        delta2[1] = 0;
+        errorGyroI[0] = 0;
+        errorGyroI[1] = 0;
+        goal_throttle = 0;
+        
+         
+        //In Idle mode, just check for serial errors
+        bool correct = true;
+        correct &= commands->ex == 0xFFFE;
+        correct &= commands->ey == 0xFDFC;
+        correct &= commands->ez == 0xFBFA;
+        correct &= commands->vx == 0xF9F8;
+        correct &= commands->vy == 0xF7F6;
+        correct &= commands->vz == 0xF5F4;
+        correct &= commands->heading == 0xF3F2;
+        serialError = correct;
+        
+        if (bbSerialMode &&
+            rcData[THROTTLE] >= MIDRC + 20)
+        {
+            controllerState = CS_WaitToWarmUp;
+        }
+    }
+    else if (controllerState == CS_WaitToWarmUp)
+    {
+        if (gotCommand && commands->command == JC_WarmUp) 
+        {
+              //arm
+            current_throttle = 1000;
+            goal_throttle = TEST_THROTTLE_LOW;
+            go_arm();
+            controllerState = CS_WarmUp;
+        }
+    }  
+    else if (controllerState == CS_WarmUp)
+    {
+        if (current_throttle == TEST_THROTTLE_LOW) //change this name
+        {
+              sendData.command = FC_ReadyToFly;
+        }
+        if (gotCommand && commands->command == JC_ErrorStop)
+        {
+            //assert: currentThrottle == TEST_THROTTLE_LOW
+            controllerState = CS_Flying;
+        }
+        
+    }
+    else if (controllerState == CS_Flying)
+    {
+        sendData.command = FC_Flying;
         goal_throttle = TEST_THROTTLE_HIGH;
     }
-    else if (!f.ARMED && rcData[THROTTLE] >= MIDRC + 10 /* Offset to avoid oopsy-on anti-feature when rx turned off */)
+    else if (controllerState == CS_Failed)
     {
-      //arm
-      current_throttle = 1000;
-      goal_throttle = TEST_THROTTLE_LOW;
-      //rcCommand[THROTTLE] = 1000;
-      go_arm();
-      //DebugPrint("Start recording: ");
-      //DebugPrintInt(rcData[THROTTLE]);
-      //DebugPrint("\n");
+       sendData.command = FC_Failure;
+       if (f.ARMED)
+       {
+           //Maybe we can think of something better than this?
+           go_disarm();
+       }
+       return;   
     }
-
+    
+  if (currentTime > rcTime ) { // 50Hz
+    rcTime = currentTime + 20000;
+    computeRC();
   } else { // not in rc loop
     static uint8_t taskOrder=0; // never call all functions in the same loop, to avoid high delay spikes
     if(taskOrder>4) taskOrder-=5;
@@ -853,17 +897,6 @@ if (bbSerialMode && currentTime > serialTime) {
   }
  
   computeIMU();  
-  //DebugPrint("Estimated altitude:\n");
-  //DebugPrintInt(alt.EstAlt);
-  //DebugPrint("\n");
-  //DebugPrint("Estimated z velocity\n");
-  //DebugPrintInt(alt.vario);
-  //DebugPrint("Estimated z velocity\n");
-  //DebugPrintInt(BaroPID);
-  //DebugPrint("\n");
-  if (alt.vario == 0) {
-    //  DebugPrint("CHECKHCK\n");
-  }
   
   // Measure loop rate just afer reading the sensors
   currentTime = micros();
@@ -876,16 +909,8 @@ if (bbSerialMode && currentTime > serialTime) {
   rcCommand[ROLL] = 0;
   rcCommand[YAW] = 0;
 //////////////////////////////////////
-  
-/* Set throttle *//////////////////////
-   /*REMOVE THIS*/ //1000 = min value
-  //Slowly ramp to velocity
-  static bool reachedHeight = false;
-  //if ( !reachedHeight && alt.EstAlt >= ALT_HOLD_HEIGHT) {
-  //  reachedHeight = true;
-  //  //initialThrottleHold = rcCommand[THROTTLE];
-  //}
-  if ( /*!reachedHeight &&*/ f.ARMED && current_throttle < goal_throttle)
+ 
+  if ( f.ARMED && current_throttle < goal_throttle)
   {
     current_throttle += TEST_THROTTLE_RAMP_PER_CYCLE;
   }
@@ -941,34 +966,8 @@ if (bbSerialMode && currentTime > serialTime) {
     delta1[axis]   = delta;
  
     DTerm = ((int32_t)DTerm*dynD8[axis])>>5;        // 32 bits is needed for calculation
-     //      DebugPrint("P,I,D ");
-    //DebugPrint("\n");
-    //DebugPrintInt(PTerm);
-    //DebugPrint("\n");
-    //DebugPrintInt(ITerm);
-    //DebugPrint("\n");
-    //DebugPrintInt(DTerm);
-    //DebugPrint("\n");
     axisPID[axis] = PTerm + ITerm - DTerm;
   }
-  
-  /*
-  DebugPrint("Axis PID: {");
-  DebugPrintInt(axisPID[0]);
-  DebugPrint(",");
-  DebugPrintInt(axisPID[1]);
-  DebugPrint("}\n");
-  DebugPrint("Gyro Data: {");
-  DebugPrintInt(imu.gyroData[0]);
-  DebugPrint(",");
-  DebugPrintInt(imu.gyroData[1]);
-  DebugPrint("}\n");
-  DebugPrint("Accelerometer Data: {");
-  DebugPrintInt(att.angle[0]);
-  DebugPrint(",");
-  DebugPrintInt(att.angle[1]);
-  DebugPrint("}\n");
-  */
   
   //YAW
   #define GYRO_P_MAX 300
@@ -990,39 +989,29 @@ if (bbSerialMode && currentTime > serialTime) {
   ITerm = constrain((int16_t)(errorGyroI_YAW>>13),-GYRO_I_MAX,+GYRO_I_MAX);
   
   axisPID[YAW] = PTerm + ITerm;
-
   
-  //DebugPrint("Baropid\n");
-  //DebugPrintInt(BaroPID);
-  if (reachedHeight) {
-      //DebugPrint("\n");
-      //rcCommand[THROTTLE] = initialThrottleHold + BaroPID;
-      //DebugPrintInt(rcCommand[THROTTLE]);
+  //Write to Jetson
+  if (bbSerialMode && currentTime > serialTime) {
+    serialTime = currentTime + 5000; //~200Hz
+    if (serialError)
+    {
+        sendData.command = FC_SerialError;
+    }
+    
+    //sendData.command = ReceivedGo;
+    sendData.rotation[0] = imu.gyroData[ROLL];
+    sendData.rotation[1] = imu.gyroData[PITCH];
+    sendData.rotation[2] = imu.gyroData[YAW];
+    sendData.rVelocity[0] = att.angle[ROLL]; //these might need to be tweaked
+    sendData.rVelocity[1] = att.angle[PITCH];
+    sendData.rVelocity[2] = att.angle[YAW];
+    
+    sendData.header = sendData.rotation[0] ^ sendData.rotation[1];
+    sendData.footer = sendData.rVelocity[0] ^ sendData.rVelocity[1];
+    sendBytes((char*)&sendData, sizeof(fcontroller_data_t));
   }
-
-
-  /////////////////// Thrust PID /////////////////////////
-  uint16_t kp_z = 1;
-  uint16_t kd_z = 1;
-  
   ////////////////////////////////////////////////////////
   mixTable();
-/*    DebugPrint("Throttle:\n");
-  DebugPrintInt(motor[0]);
-  DebugPrint("\n");
-  DebugPrintInt(motor[1]);
-  DebugPrint("\n");
-  DebugPrintInt(motor[2]);
-  DebugPrint("\n");
-  DebugPrintInt(motor[3]);
-  DebugPrint("\n");
-  DebugPrintInt(motor[4]);
-  DebugPrint("\n");
-  DebugPrintInt(motor[5]);
-  DebugPrint("\n");
-  */
-  // do not update servos during unarmed calibration of sensors which are sensitive to vibration
-  //if ( (f.ARMED) || ((!calibratingG) && (!calibratingA)) ) //writeServos();
   writeMotors();
 }
 

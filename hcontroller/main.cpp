@@ -19,6 +19,7 @@ int main(void)
 {
     JetsonState jState = JS_Idle;
     struct timespec warmup_start_time;
+
     // initialize serial connections
     int fcontroller_fd = initSerialCom((char*)"/dev/fcontroller");
     int arduino_fd = initSerialCom((char*)"/dev/arduino");
@@ -44,6 +45,7 @@ int main(void)
     while(1)  
     {
         int height, distanceToWindow;
+        float xFlowVelocity, yFlowVelocity;
         fcontroller_data_t in_data;
         commands_t out_data;
         struct timespec current_time;
@@ -51,7 +53,7 @@ int main(void)
         clock_gettime(CLOCK_REALTIME, &current_time);
         readFController(fcontroller_fd, &in_data);
         readSonar(arduino_fd, height, distanceToWindow);
-        calculateOpticalFlow(); 
+        calculateOpticalFlow(xFlowVelocity, yFlowVelocity); 
 
         if (jState == Idle) 
         {
@@ -76,7 +78,7 @@ int main(void)
         }
         else if (jState == JS_WarmUp)
         {
-            out_data.command - JC_WarmUp;
+            out_data.command = JC_WarmUp;
             if (current_time.tv_sec - warmup_start_time.tv_sec > WARMUP_TIME) 
             {
                 jState == JS_AltHold;
@@ -85,6 +87,8 @@ int main(void)
         else if (jState == JS_AltHold)
         {
             out_data.command = JC_AltHold;
+            
+
         }
 
 

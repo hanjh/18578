@@ -72,7 +72,7 @@ int opticalFlowDemoFrameInit()
     return 0;
 }
 
-int calculateOpticalFlow()
+int calculateOpticalFlow(float& xFlowVelocity, float& yFlowVelocity)
 {
 		static IplImage *frame = NULL, *frame1 = NULL, *frame1_1C = NULL, *frame2_1C = NULL, *eig_image = NULL, *temp_image = NULL, *pyramid1 = NULL, *pyramid2 = NULL;
 
@@ -251,11 +251,9 @@ int calculateOpticalFlow()
       printf("Absolutes are X: \n%f\n, Y:\n%f \n",xtot,ytot);
       xtot += medianX;
       ytot -= medianY;
-#if PERFORMANCE_MONITORING
-    clock_t stop = clock();
-    //double elapsed = (double)(stop - start) * 1000.0 / CLOCKS_PER_SECOND;
-    printf("Elapsed time: %f\n", (double)(stop-start));
-#endif
+      xFlowVelocity = medianX;
+      yFlowVelocity	= medianY;
+      return 0;
            /* !!!!! This is the end of the useful algorithm, the rest is for visualization !!!!!! */
 //#if 0
 
@@ -321,15 +319,5 @@ int calculateOpticalFlow()
 	//	#if 0
         int key_pressed;
 		key_pressed = cvWaitKey(1);
-#if 0
-		/* If the users pushes "b" or "B" go back one frame.
-		 * Otherwise go forward one frame.
-		 */
-		if (key_pressed == 'b' || key_pressed == 'B')	current_frame--;
-		else											current_frame++;
-		/* Don't run past the front/end of the AVI. */
-		if (current_frame < 0)						current_frame = 0;
-		if (current_frame >= number_of_frames - 1)	current_frame = number_of_frames - 2;
-        //current_frame++;
-  #endif
+
 }
