@@ -163,6 +163,7 @@ enum ControllerState
     CS_WaitToWarmUp,
     CS_WarmUp,
     CS_Flying,
+    CS_Stopped,
     CS_Failed
 };
 
@@ -737,21 +738,48 @@ void loop () {
     commands_t* commands; //Commands from jetson
     bool serialError = false;
       
+    //DebugPrintInt(controllerState);
+    //DebugPrint("\n");
+    
+    //Check for manual stop
+    if (rcData[THROTTLE] < MIDRC &&
+        controllerState != CS_Idle)
+    {
+        controllerState = CS_Stopped;
+    }
+    
+    //Check for serial mode
+    if (rcData[ROLL] > MIDRC + 100) {
+      bbSerialMode = true;
+    }
+    else if (rcData[ROLL] < MIDRC - 100) {
+      bbSerialMode = false;
+    }
     
     //First read commands from Jetson (most cases will be no command)
     bool gotCommand = readCommand(commands); //reading the commands into the struct
+    
     if (gotCommand) //this will only be true periodically as the flight controller updates more quickly
     {
         //Make sure there isn't an error
         //If it is, will set SerialError command at end of function
         serialError = (commands->header == (commands->ex ^ commands->ey)) &&
                       (commands->footer == (commands->vx ^ commands->vy));
+        controllerState = CS_Stopped;
     }
       //arm
   //current_throttle = 1000;
   //goal_throttle = TEST_THROTTLE_LOW;
   //go_arm();
-    if (controllerState == CS_Idle)
+    if (controllerState == CS_Stopped)
+    {
+        if (f.ARMED)
+        {
+            go_disarm();
+        }
+        //Don't just return, need to call mixTables() to actually disarm.
+    }
+    else if (controllerState == CS_Idle)
     {
         //Are these nessecary?
         current_throttle = 0;
@@ -780,7 +808,8 @@ void loop () {
         correct &= commands->heading == 0xF3F2;
         serialError = correct;
         
-        if (rcData[THROTTLE] >= MIDRC + 20)
+        if (bbSerialMode &&
+            rcData[THROTTLE] >= MIDRC + 20)
         {
             controllerState = CS_WaitToWarmUp;
         }
@@ -828,16 +857,6 @@ void loop () {
   if (currentTime > rcTime ) { // 50Hz
     rcTime = currentTime + 20000;
     computeRC();
-  
-    if (rcData[ROLL] > MIDRC + 100) {
-      bbSerialMode = true;
-    }
-    else if (rcData[ROLL] < MIDRC - 100) {
-      bbSerialMode = false;
-    }
-    if (f.ARMED && rcData[THROTTLE] < MIDRC) {
-      // disarm
-    }
   } else { // not in rc loop
     static uint8_t taskOrder=0; // never call all functions in the same loop, to avoid high delay spikes
     if(taskOrder>4) taskOrder-=5;
