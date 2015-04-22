@@ -13,6 +13,7 @@
 #include<opencv2/opencv.hpp>
 #include <stdio.h>
 #include<string.h>
+#include <highgui.h>
 using namespace std;
 using namespace cv;
 
@@ -28,24 +29,46 @@ int main(int argc, char** argv)
 	    cout << "Failed to connect to the camera." << endl;
     cout << "Connected to the camera." << endl;
     */
+
+    CvCapture* input_video = cvCreateCameraCapture(0); // video0
     Mat frame, edges;
+    cvNamedWindow("window detection", CV_WINDOW_AUTOSIZE);
+
     //capture >> frame;
 
-    char* name = argv[1];
+    //char* name = argv[1];
     
     // ignore capture
+    /*
     frame = imread(name, CV_LOAD_IMAGE_COLOR);
     if(frame.empty())
     {
 		cout << "Failed to capture an image" << endl;
 		return -1;
     }
+    */
     
-    /* FILTERING */
-    cvtColor(frame, edges, CV_BGR2GRAY);
-    blur(edges, edges, Size(7, 7));
-    Canny(edges, edges, 10, 50, 3);
+    while(true)
+    {
+        const IplImage* video_frame = cvQueryFrame(input_video);
+        if(video_frame == NULL)
+        {
+            printf("opening video failed\n");
+            return -1;
+        }
+        // need to convert video_frame from IplImage* to Mat, because cvtColor 
+        // takes mat
+        Mat frame(video_frame);
 
+        /* FILTERING */
+        cvtColor(frame, edges, CV_BGR2GRAY);
+        blur(edges, edges, Size(7, 7));
+        Canny(edges, edges, 10, 50, 3);
+            
+        cvShowImage("window detection", edges);
+    }
+
+#if 0
     /* FIND CORNERS */
     // 640x480
     int mintop = edges.rows;
@@ -131,5 +154,7 @@ int main(int argc, char** argv)
 
     imwrite(edge_name, edges);
     //imwrite(capture_name, frame);
+
+#endif
     return 0;
 }
