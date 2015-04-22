@@ -3,29 +3,6 @@
 using namespace cv;
 using namespace std;
 
-Mat draw_square(vector<vector<Point> > squares, Mat image)
-{
-    for (int i = 0; i < squares.size(); i++)
-    {
-        // draw contour
-        drawContours(image, squares, i, Scalar(255,0,0), 1, 8, vector<Vec4i>(), 0, Point());
-
-        // draw bounding rect
-        Rect rect = boundingRect(Mat(squares[i]));
-        rectangle(image, rect.tl(), rect.br(), Scalar(0,255,0), 2, 8, 0);
-
-        // draw rotated rect
-        RotatedRect minRect = minAreaRect(Mat(squares[i]));
-        Point2f rect_points[4];
-        minRect.points( rect_points );
-        for ( int j = 0; j < 4; j++ ) 
-        {
-            line( image, rect_points[j], rect_points[(j+1)%4], Scalar(0,0,255), 1, 8); // blue
-        }
-    }
-    return image;
-}
-
 double angle( cv::Point pt1, cv::Point pt2, cv::Point pt0 ) 
 {
     double dx1 = pt1.x - pt0.x;
@@ -37,7 +14,7 @@ double angle( cv::Point pt1, cv::Point pt2, cv::Point pt0 )
 
 void find_squares(Mat& image, vector<vector<Point> >& squares)
 {
-    //cout << "Entered find_squares\n";
+    cout << "Entered find_squares\n";
     // blur will enhance edge detection
     Mat blurred(image);
     medianBlur(image, blurred, 9);
@@ -45,11 +22,14 @@ void find_squares(Mat& image, vector<vector<Point> >& squares)
     Mat gray0(blurred.size(), CV_8U), gray;
     vector<vector<Point> > contours;
 
+
     // find squares in every color plane of the image
+    /*
     for (int c = 0; c < 3; c++)
     {
-        //cout << "Entered for loop\n";
-        //int c = 0;
+    */
+        cout << "Entered for loop\n";
+        int c = 0;
         int ch[] = {c, 0};
         mixChannels(&blurred, 1, &gray0, 1, ch, 1);
 
@@ -102,19 +82,20 @@ void find_squares(Mat& image, vector<vector<Point> >& squares)
                 }
             }
         }
-    }
-    //cout << "Exiting find_squares\n";
+    //}
+    cout << "Exiting find_squares\n";
 }
 
 void find_largest_square(const vector<vector<Point> >& squares, vector<Point>& biggest_square)
 {
-    //cout << "Finding largest square \n";
-    //cout << "*******************************************************************\n\n\n";
-    if (squares.size() == 0)
+    cout << "Finding largest square \n";
+    cout << "*******************************************************************\n\n\n";
+    if (!squares.size())
     {
+        // no squares detected
         return;
     }
-    //cout << "got here \n";
+    cout << "got here \n";
 
     int max_width = 0;
     int max_height = 0;
@@ -123,7 +104,7 @@ void find_largest_square(const vector<vector<Point> >& squares, vector<Point>& b
 
     for (size_t i = 0; i < squares.size(); i++)
     {
-        //cout << "Entered for loop\n";
+        cout << "Entered for loop\n";
         // Convert a set of 4 unordered Points into a meaningful cv::Rect structure.
         Rect rectangle = boundingRect(Mat(squares[i]));
 
@@ -142,6 +123,7 @@ void find_largest_square(const vector<vector<Point> >& squares, vector<Point>& b
 
 int main(int, char**)
 {
+    cout << "Entered main\n";
     VideoCapture cap(0); // open the default camera
     if(!cap.isOpened())  // check if we succeeded
     {
@@ -149,49 +131,37 @@ int main(int, char**)
         return -1;
     }
     Mat frame, edges;
-    //namedWindow("edges",1);
-    namedWindow("frame",1);
+    namedWindow("edges",1);
     while(true)
     {
-        //cout << "entered while loop\n";
+        cout << "entered while loop\n";
         cap >> frame; // get a new frame from camera
         cvtColor(frame, edges, CV_BGR2GRAY);
         GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
         Canny(edges, edges, 0, 30, 3);
-        //imshow("edges", edges);
+        imshow("edges", edges);
+        if(waitKey(30) >= 0) break;
 
         // Detect all regions in the image that are similar to a rectangle
         vector<vector<Point> > squares;
-        //find_squares(edges, squares);
-        find_squares(frame, squares);
+        find_squares(edges, squares);
 
         cout << "squares.size() = " << squares.size() << "\n";
-        if (squares.size() == 0)
-        {
-            cout << "No squares found.\n";
-            //return -1;
-        }
-        else
-        {
-            // The largest of them probably represents the window
-            vector<Point> largest_square;
-            find_largest_square(squares, largest_square);
 
-            // Print the x,y coordinates of the square
-            cout << "Point 1: " << largest_square[0] << endl;
-            cout << "Point 2: " << largest_square[1] << endl;
-            cout << "Point 3: " << largest_square[2] << endl;
-            cout << "Point 4: " << largest_square[3] << endl;
-            cout << "\n";
-            draw_square(squares, frame);
-        }
-        imshow("frame", frame);
-        if(waitKey(30) >= 0) break;
+        // The largest of them probably represents the window
+        vector<Point> largest_square;
+        find_largest_square(squares, largest_square);
+
+        // Print the x,y coordinates of the square
+        cout << "Point 1: " << largest_square[0] << endl;
+        cout << "Point 2: " << largest_square[1] << endl;
+        cout << "Point 3: " << largest_square[2] << endl;
+        cout << "Point 4: " << largest_square[3] << endl;
+        cout << "\n";
     }
     // camera deinitialized automatically in VideoCapture destructor
     return 0;
 }
-
 
 
 
