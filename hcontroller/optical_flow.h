@@ -3,6 +3,6 @@
 
 int opticalFlowInit(void);
 int opticalFlowDemoFrameInit(void);
-int calculateOpticalFlow(void);
+int calculateOpticalFlow(float& xFlowVelocity, float& yFlowVelocity);
 
 #endif
