@@ -64,6 +64,7 @@ int opticalFlowInit(void)
 	 * Have the window automatically change its size to match the output.
 	 */
 	cvNamedWindow("Optical Flow", CV_WINDOW_AUTOSIZE);
+    return 0;
 }
 
 int opticalFlowDemoFrameInit()

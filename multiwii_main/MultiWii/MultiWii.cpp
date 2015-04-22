@@ -740,6 +740,34 @@ void loop () {
       
     //DebugPrintInt(controllerState);
     //DebugPrint("\n");
+    /*
+    DebugPrint("fcontroller_data_t = ");
+    DebugPrintInt(sizeof(fcontroller_data_t));
+    DebugPrint("\n");
+    DebugPrint("commands_t = ");
+    DebugPrintInt(sizeof(commands_t));
+    DebugPrint("\n");
+    delay(100);
+    return;
+    */
+    
+    /*
+    sendData.rotation[0] = 0xFFFE;//imu.gyroData[ROLL];
+    sendData.rotation[1] = 0xFDFC;//imu.gyroData[PITCH];
+    sendData.rotation[2] = 0xFBFA;//imu.gyroData[YAW];
+    sendData.rVelocity[0] = 0xF9F8;//att.angle[ROLL]; //these might need to be tweaked
+    sendData.rVelocity[1] = 0xF7F6;//att.angle[PITCH];
+    sendData.rVelocity[2] = 0xF5F4;//att.angle[YAW];
+    sendData.command = FC_SerialError;
+    
+    sendData.header = sendData.rotation[0] ^ sendData.rotation[1];
+    sendData.footer = sendData.rVelocity[0] ^ sendData.rVelocity[1];
+    sendBytes((char*)&sendData, sizeof(fcontroller_data_t));
+    //DebugPrint("this is a long long long long string\n");
+    delay(10);
+    return;
+    */
+    
     
     //Check for manual stop
     if (rcData[THROTTLE] < MIDRC &&
@@ -757,7 +785,7 @@ void loop () {
     }
     
     //First read commands from Jetson (most cases will be no command)
-    bool gotCommand = readCommand(commands); //reading the commands into the struct
+    bool gotCommand = false;//readCommand(commands); //reading the commands into the struct
     
     if (gotCommand) //this will only be true periodically as the flight controller updates more quickly
     {
@@ -1005,6 +1033,11 @@ void loop () {
     sendData.rVelocity[0] = att.angle[ROLL]; //these might need to be tweaked
     sendData.rVelocity[1] = att.angle[PITCH];
     sendData.rVelocity[2] = att.angle[YAW];
+    
+    if (serialError)
+    {
+        sendData.rotation[0] = 0xFFFF;
+    }
     
     sendData.header = sendData.rotation[0] ^ sendData.rotation[1];
     sendData.footer = sendData.rVelocity[0] ^ sendData.rVelocity[1];

@@ -10,7 +10,7 @@ enum JetsonState
     JS_Idle,
     JS_WarmUp,
     JS_AltHold,
-    JS_FindWindow
+    JS_FindWindow,
     JS_Error
 };
 
@@ -21,8 +21,10 @@ int main(void)
     struct timespec warmup_start_time;
 
     // initialize serial connections
-    int fcontroller_fd = initSerialCom((char*)"/dev/fcontroller");
-    int arduino_fd = initSerialCom((char*)"/dev/arduino");
+    //int fcontroller_fd = initSerialCom((char*)"/dev/fcontroller");
+    int fcontroller_fd = initSerialCom((char*)"/dev/ttyUSB0");
+    //int arduino_fd = initSerialCom((char*)"/dev/arduino");
+    int arduino_fd = initSerialCom((char*)"/dev/ttyACM0");
     if(fcontroller_fd < 0)
     {
         printf("Failed to open fcontroller\n");
@@ -40,10 +42,13 @@ int main(void)
         printf("optical flow failed\n");
         return -1;
     }
+    printf("sizeof(fcontroller_data_t) = %d\n", sizeof(fcontroller_data_t));
+    printf("sizeof(commands_t) = %d\n", sizeof(commands_t));
 
     //opticalFlowDemoFrameInit();
     while(1)  
     {
+        printf("entered while loop\n");
         int height, distanceToWindow;
         float xFlowVelocity, yFlowVelocity;
         fcontroller_data_t in_data;
@@ -52,10 +57,23 @@ int main(void)
 
         clock_gettime(CLOCK_REALTIME, &current_time);
         readFController(fcontroller_fd, &in_data);
+        printf("in_data.header = %x\n", in_data.header == in_data.rotation[0] ^ in_data.rotation[1]);
+        printf("in_data.rotation[0] = %x\n", in_data.rotation[0]);
+        printf("in_data.rotation[1] = %x\n", in_data.rotation[1]);
+        printf("in_data.rotation[2] = %x\n", in_data.rotation[2]);
+        printf("in_data.rVelocity[0] = %x\n", in_data.rVelocity[0]);
+        printf("in_data.rVelocity[1] = %x\n", in_data.rVelocity[1]);
+        printf("in_data.rVelocity[2] = %x\n", in_data.rVelocity[2]);
+        printf("in_data.command = %d\n", in_data.command);
+        printf("in_data.footer = %x\n", in_data.footer == (in_data.rVelocity[0] ^ in_data.rVelocity[1]));
         readSonar(arduino_fd, height, distanceToWindow);
+        printf("height = %d\n", height);
+        printf("distanceToWindow = %d\n", distanceToWindow);
         calculateOpticalFlow(xFlowVelocity, yFlowVelocity); 
-
-        if (jState == Idle) 
+        printf("xFlowVelocity = %f\n", xFlowVelocity);
+        printf("yFlowVelocity = %f\n", yFlowVelocity);
+    
+        if (jState == JS_Idle) 
         {
                 out_data.ex = 0xFFFE;
                 out_data.ey = 0xFDFC;
@@ -87,14 +105,11 @@ int main(void)
         else if (jState == JS_AltHold)
         {
             out_data.command = JC_AltHold;
-            
-
         }
 
 
         out_data.header = out_data.ex ^ out_data.ey;
         out_data.footer = out_data.vx ^ out_data.vy;
-        writeFController(fcontroller_fd, out_data);
+        writeFController(fcontroller_fd, &out_data);
     }
-
 }

@@ -22,8 +22,8 @@ long measure_SR04_distance(int trig, int echo)
    digitalWrite(trig,LOW);
    
    long time = pulseIn(echo,HIGH);
-   Serial.println("\n");
-   Serial.println(time);
+   //Serial.println("\n");
+   //Serial.println(time);
    return time / SCALING_FACTOR;
 }
 
@@ -50,10 +50,10 @@ void setup()
     aggregate0 += aggregate_array0[i];
     aggregate1 += aggregate_array1[i];
     delay(60);
-    Serial.println("once\n");
-    Serial.flush();
+    //Serial.println("once\n");
+    //Serial.flush();
   }
-  Serial.println("Setup done\n");
+  //Serial.println("Setup done\n");
 }
 
 void loop() 
@@ -67,29 +67,33 @@ void loop()
   aggregate_array1[aggregateIndex] = distance1;
   
   
-  Serial.print("printing aggregate_array0 \n");
+  //Serial.print("printing aggregate_array0 \n");
   long sum = 0;
   for(int i = 0; i< 9; i++)
   {
-    Serial.print(aggregate_array0[i]);
-    Serial.print('\t');
+    //Serial.print(aggregate_array0[i]);
+    //Serial.print('\t');
     sum += aggregate_array0[i];
   }  
-  Serial.print("\n");  
+  //Serial.print("\n");  
   
   aggregateIndex = (aggregateIndex + 1) % FILTER_LENGTH;
+  /*
   Serial.print("aggregate0 = ");
   Serial.println(aggregate0);
   Serial.print("value to subtract = ");
   Serial.println(aggregate_array0[aggregateIndex]);
+  */
   aggregate0 = aggregate0 + distance0 - aggregate_array0[aggregateIndex];
+  /*
   Serial.print("new aggregate0 = ");
   Serial.println(aggregate0);
+  */
   aggregate1 = aggregate1 + distance1 - aggregate_array1[aggregateIndex];
-  output[0] = /*aggregate0*/sum/FILTER_LENGTH;
-  output[1] = aggregate1/FILTER_LENGTH;
+  output[0] = /*aggregate0*/(sum/FILTER_LENGTH)/58;
+  output[1] = (aggregate1/FILTER_LENGTH)/58;
   
-  #if 0
+  #if 1
   Serial.write((const uint8_t*)output,8);
   #else
   Serial.print("Height: ");

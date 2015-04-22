@@ -109,7 +109,7 @@ enum JetCommand : uint16_t
 };
 //Structure to hold commands from beaglebone
 typedef struct {
-  uint32_t header;
+  uint16_t header;
   //Multi-purpose command buffer
   JetCommand command;
   //Position Errors
@@ -122,17 +122,17 @@ typedef struct {
   int16_t  vz;
   //Yaw/heading error
   int16_t  heading;
-  uint32_t footer;
+  uint16_t footer;
 } commands_t;// __attribute__((packed));
 
 
 typedef struct {
-    uint32_t header;
+    uint16_t header;
     uint16_t rotation[3];
     uint16_t rVelocity[3];
     FCCommand command;
-    char    padding[2];
-    uint32_t footer;
+    //char    padding[2];
+    uint16_t footer;
 } fcontroller_data_t;
 
 

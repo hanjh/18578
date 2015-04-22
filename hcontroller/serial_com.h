@@ -35,6 +35,7 @@ struct commands_t {
     int16_t heading; //Yaw
     uint16_t footer;
     // 10 * 2 = 20 bytes
+    // 24 on fcontroller
 };
 
 struct fcontroller_data_t
@@ -45,6 +46,7 @@ struct fcontroller_data_t
     FCCommand command; // uint16_t
     uint16_t footer; 
     // 9 * 2 = 18 bytes
+    // 24 on fcontroller
 };
 
 int initSerialCom(char* deviceID);
